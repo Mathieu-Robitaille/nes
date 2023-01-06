@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 olc_pixel_game_engine =  { path = "crates/olcPixelGameEngine-rs" }
 lazy_static = "*"
+bitflags = "*"
