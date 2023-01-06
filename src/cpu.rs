@@ -12,7 +12,11 @@
 // (16384..=16407)
 
 use crate::bus::{Bus, BusReader, BusWriter};
-use crate::instructions::AddressingMode;
+use crate::instructions::{
+    AddressingMode, 
+    INSTRUCTIONS_HM, 
+    process_instruction_addressing_mode
+};
 use std::{
     cell::RefCell,
     rc::Rc,
@@ -71,12 +75,27 @@ impl Cpu6502 {
     }
 
     pub(crate) fn clock(&mut self) {
-        self.opcode = self.bus_read(self.program_counter, false);
+        self.clock_count += 1;
+        self.cycles -= 1;
+
+        if self.cycles != 0 { return; }
+
+        self.opcode = self.read_bus(self.program_counter);
+
+        // make suuuuuuure its set
+        self.set_flag(Flags::U, true);
+
         self.program_counter += 1;
 
-        self.cycles = 0;
+        if let Some(ins) = INSTRUCTIONS_HM.get(&self.opcode) {
+            let additional_cycle1: u8 = process_instruction_addressing_mode(&ins, self);
+            let additional_cycle2: u8 = (ins.function)(self);
+            self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
+        }
 
-        todo!();
+        // make suuuuuuure its set
+        self.set_flag(Flags::U, true);
+        
     }
 
     pub(crate) fn read_bus_two_bytes(&mut self, addr: u16) -> u16 { 
@@ -94,12 +113,52 @@ impl Cpu6502 {
 
     pub(crate) fn reset(&mut self) {
         self.addr_abs = 0xFFFC;
-        self.program_counter = self.read_bus_two_bytes(self.addr_abs)
+        self.program_counter = self.read_bus_two_bytes(self.addr_abs);
+        self.acc = 0;
+        self.x_reg = 0;
+        self.y_reg = 0;
+        self.stack_pointer = 0xFD;
+        self.status = 0x00 | (Flags::U as u8);
+
+        self.addr_rel = 0x0000;
+        self.addr_abs = 0x0000;
+        self.fetched = 0x0000;
+
+        self.cycles = 8;
     }
 
-    fn irq() {}
+    fn irq(&mut self) {
+        if self.get_flag(Flags::I) != 0 { return; }
+        self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.program_counter);
+        self.stack_pointer -= 2;
 
-    fn nmi() {}
+        self.set_flag(Flags::B, false);
+        self.set_flag(Flags::U, true);
+        self.set_flag(Flags::I, true);
+
+        self.write_bus(0x0100 + (self.stack_pointer as u16), self.status);
+        self.stack_pointer -= 1;
+
+        self.addr_abs = 0xFFFE;
+        self.program_counter = self.read_bus_two_bytes(self.addr_abs);
+        self.cycles = 7;
+    }
+
+    fn nmi(&mut self) {
+        self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.program_counter);
+        self.stack_pointer -= 2;
+
+        self.set_flag(Flags::B, false);
+        self.set_flag(Flags::U, true);
+        self.set_flag(Flags::I, true);
+
+        self.write_bus(0x0100 + (self.stack_pointer as u16), self.status);
+        self.stack_pointer -= 1;
+
+        self.addr_abs = 0xFFFA;
+        self.program_counter = self.read_bus_two_bytes(self.addr_abs);
+        self.cycles = 8;
+    }
 
     pub(crate) fn fetch(&mut self) -> u8 {
         if self.addressing_mode != AddressingMode::IMP {
