@@ -12,25 +12,76 @@
 // (16384..=16407)
 
 use crate::bus::{Bus, BusReader, BusWriter};
+use bitflags::bitflags;
 use crate::instructions::{
+    Instruction,
     AddressingMode, 
-    INSTRUCTIONS_HM, 
+    INSTRUCTIONS_ARR, 
     process_instruction_addressing_mode
 };
 use std::{
     cell::RefCell,
     rc::Rc,
+    ops::{
+        BitAnd,
+        BitAndAssign,
+        BitOr,
+        BitOrAssign,
+        BitXor,
+        BitXorAssign,
+    }
 };
 
-pub(crate) enum Flags {
-    C = 1 << 0, // Carry Bit
-    Z = 1 << 1, // Zero
-    I = 1 << 2, // Disable Interupts
-    D = 1 << 3, // Decimal Mode
-    B = 1 << 4, // Break
-    U = 1 << 5, // Unused
-    V = 1 << 6, // Overflow
-    N = 1 << 7, // Negative
+bitflags! {
+    pub struct Flags: u8 {
+        const C = 1 << 0; // Carry Bit
+        const Z = 1 << 1; // Zero
+        const I = 1 << 2; // Disable Interupts
+        const D = 1 << 3; // Decimal Mode
+        const B = 1 << 4; // Break
+        const U = 1 << 5; // Unused
+        const V = 1 << 6; // Overflow
+        const N = 1 << 7; // Negative
+    }
+}
+
+impl BitAnd<Flags> for u8 {
+    type Output = u8;
+    fn bitand(self, rhs: Flags) -> Self::Output {
+        self & rhs.bits
+    }
+}
+
+impl BitAndAssign<Flags> for u8 {
+    fn bitand_assign(&mut self, rhs: Flags) {
+        *self = *self & rhs.bits
+    }
+}
+
+impl BitOr<Flags> for u8 {
+    type Output = u8;
+    fn bitor(self, rhs: Flags) -> Self::Output {
+        self | rhs.bits
+    }
+}
+
+impl BitOrAssign<Flags> for u8 {
+    fn bitor_assign(&mut self, rhs: Flags) {
+        *self = *self | rhs.bits
+    }
+}
+
+impl BitXor<Flags> for u8 {
+    type Output = u8;
+    fn bitxor(self, rhs: Flags) -> Self::Output {
+        self ^ rhs.bits
+    }
+}
+
+impl BitXorAssign<Flags> for u8 {
+    fn bitxor_assign(&mut self, rhs: Flags) {
+        *self = *self ^ rhs.bits
+    }
 }
 
 pub struct Cpu6502 {
@@ -59,7 +110,7 @@ impl Cpu6502 {
     pub(crate) fn write_bus(&mut self, addr: u16, data: u8) { self.bus_write(addr, data) }
     
     pub(crate) fn get_flag(&self, flag: Flags) -> u8 {
-        if self.status & flag as u8 > 0 {
+        if self.status & flag > 0 {
             return 1;
         } else {
             return 0;
@@ -68,9 +119,9 @@ impl Cpu6502 {
     
     pub(crate) fn set_flag(&mut self, flag: Flags, v: bool) {
         if v {
-            self.status = self.status | flag as u8;
+            self.status = self.status | flag;
         } else {
-            self.status = self.status & !(flag as u8);
+            self.status = self.status & !flag;
         }
     }
 
@@ -87,15 +138,15 @@ impl Cpu6502 {
 
         self.program_counter += 1;
 
-        if let Some(ins) = INSTRUCTIONS_HM.get(&self.opcode) {
-            let additional_cycle1: u8 = process_instruction_addressing_mode(&ins, self);
+        if (0x00..=0xFF).contains(&self.opcode) {
+            let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
+            let additional_cycle1: u8 = process_instruction_addressing_mode(ins, self);
             let additional_cycle2: u8 = (ins.function)(self);
             self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
         }
 
         // make suuuuuuure its set
         self.set_flag(Flags::U, true);
-        
     }
 
     pub(crate) fn read_bus_two_bytes(&mut self, addr: u16) -> u16 { 
@@ -118,7 +169,7 @@ impl Cpu6502 {
         self.x_reg = 0;
         self.y_reg = 0;
         self.stack_pointer = 0xFD;
-        self.status = 0x00 | (Flags::U as u8);
+        self.status = 0x00 | Flags::U;
 
         self.addr_rel = 0x0000;
         self.addr_abs = 0x0000;

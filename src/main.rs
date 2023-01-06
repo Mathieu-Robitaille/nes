@@ -9,7 +9,6 @@ mod cpu;
 mod bus;
 mod instructions;
 
-
 impl olc::Application for ExampleProgram {
     fn on_user_create(&mut self) -> Result<(), olc::Error> {
       // Mirrors `olcPixelGameEngine::onUserCreate`. Your code goes here.

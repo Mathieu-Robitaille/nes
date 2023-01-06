@@ -2,11 +2,23 @@ use crate::cpu::{Cpu6502, Flags};
 use std::collections::HashMap;
 use lazy_static::lazy_static;
 
+#[derive(Clone, Copy)]
 pub struct Instruction {
-    pub(crate) name: String,
+    pub(crate) name: &'static str,
     pub(crate) addr_mode: AddressingMode,
     pub(crate) function: for<'r> fn(&'r mut Cpu6502) -> u8,
     pub(crate) clock_cycles: u8,
+}
+
+impl Default for Instruction {
+    fn default() -> Self {
+        Instruction {
+            name: "???",
+            addr_mode: AddressingMode::XXX,
+            function: XXX,
+            clock_cycles: 0,
+        }
+    }
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -17,6 +29,7 @@ pub enum AddressingMode {
     ABS, ABX,
     ABY, IND,
     IZX, IZY,
+    XXX,
 }
 
 fn process_instruction(instruction: &Instruction, cpu: &mut Cpu6502) {
@@ -177,271 +190,271 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
             } else {
                 return 0;
             }
-        }
+        },
+        AddressingMode::XXX => { 0 }
     }
 }
 
-
 lazy_static! {
     // BY THE POWER OF AUTS
-    pub static ref INSTRUCTIONS_HM: HashMap<u8, Instruction> = {
-        let mut m = HashMap::new();
-        m.insert(0x00, Instruction { name: "BRK".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMM, function: BRK});
-        m.insert(0x01, Instruction { name: "ORA".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZX, function: ORA});
-        m.insert(0x02, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x03, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x04, Instruction { name: "???".to_string(), clock_cycles: 3, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x05, Instruction { name: "ORA".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: ORA});
-        m.insert(0x06, Instruction { name: "ASL".to_string(), clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: ASL});
-        m.insert(0x07, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x08, Instruction { name: "PHP".to_string(), clock_cycles: 3, addr_mode: AddressingMode::IMP, function: PHP});
-        m.insert(0x09, Instruction { name: "ORA".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: ORA});
-        m.insert(0x0A, Instruction { name: "ASL".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: ASL});
-        m.insert(0x0B, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x0C, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x0D, Instruction { name: "ORA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: ORA});
-        m.insert(0x0E, Instruction { name: "ASL".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ABS, function: ASL});
-        m.insert(0x0F, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x10, Instruction { name: "BPL".to_string(), clock_cycles: 2, addr_mode: AddressingMode::REL, function: BPL});
-        m.insert(0x11, Instruction { name: "ORA".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IZY, function: ORA});
-        m.insert(0x12, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x13, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x14, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x15, Instruction { name: "ORA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: ORA});
-        m.insert(0x16, Instruction { name: "ASL".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: ASL});
-        m.insert(0x17, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x18, Instruction { name: "CLC".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: CLC});
-        m.insert(0x19, Instruction { name: "ORA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABY, function: ORA});
-        m.insert(0x1A, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x1B, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x1C, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x1D, Instruction { name: "ORA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABX, function: ORA});
-        m.insert(0x1E, Instruction { name: "ASL".to_string(), clock_cycles: 7, addr_mode: AddressingMode::ABX, function: ASL});
-        m.insert(0x1F, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x20, Instruction { name: "JSR".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ABS, function: JSR});
-        m.insert(0x21, Instruction { name: "AND".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZX, function: AND});
-        m.insert(0x22, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x23, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x24, Instruction { name: "BIT".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: BIT});
-        m.insert(0x25, Instruction { name: "AND".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: AND});
-        m.insert(0x26, Instruction { name: "ROL".to_string(), clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: ROL});
-        m.insert(0x27, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x28, Instruction { name: "PLP".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: PLP});
-        m.insert(0x29, Instruction { name: "AND".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: AND});
-        m.insert(0x2A, Instruction { name: "ROL".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: ROL});
-        m.insert(0x2B, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x2C, Instruction { name: "BIT".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: BIT});
-        m.insert(0x2D, Instruction { name: "AND".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: AND});
-        m.insert(0x2E, Instruction { name: "ROL".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ABS, function: ROL});
-        m.insert(0x2F, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x30, Instruction { name: "BMI".to_string(), clock_cycles: 2, addr_mode: AddressingMode::REL, function: BMI});
-        m.insert(0x31, Instruction { name: "AND".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IZY, function: AND});
-        m.insert(0x32, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x33, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x34, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x35, Instruction { name: "AND".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: AND});
-        m.insert(0x36, Instruction { name: "ROL".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: ROL});
-        m.insert(0x37, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x38, Instruction { name: "SEC".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: SEC});
-        m.insert(0x39, Instruction { name: "AND".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABY, function: AND});
-        m.insert(0x3A, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x3B, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x3C, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x3D, Instruction { name: "AND".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABX, function: AND});
-        m.insert(0x3E, Instruction { name: "ROL".to_string(), clock_cycles: 7, addr_mode: AddressingMode::ABX, function: ROL});
-        m.insert(0x3F, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x40, Instruction { name: "RTI".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: RTI});
-        m.insert(0x41, Instruction { name: "EOR".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZX, function: EOR});
-        m.insert(0x42, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x43, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x44, Instruction { name: "???".to_string(), clock_cycles: 3, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x45, Instruction { name: "EOR".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: EOR});
-        m.insert(0x46, Instruction { name: "LSR".to_string(), clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: LSR});
-        m.insert(0x47, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x48, Instruction { name: "PHA".to_string(), clock_cycles: 3, addr_mode: AddressingMode::IMP, function: PHA});
-        m.insert(0x49, Instruction { name: "EOR".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: EOR});
-        m.insert(0x4A, Instruction { name: "LSR".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: LSR});
-        m.insert(0x4B, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x4C, Instruction { name: "JMP".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ABS, function: JMP});
-        m.insert(0x4D, Instruction { name: "EOR".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: EOR});
-        m.insert(0x4E, Instruction { name: "LSR".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ABS, function: LSR});
-        m.insert(0x4F, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x50, Instruction { name: "BVC".to_string(), clock_cycles: 2, addr_mode: AddressingMode::REL, function: BVC});
-        m.insert(0x51, Instruction { name: "EOR".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IZY, function: EOR});
-        m.insert(0x52, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x53, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x54, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x55, Instruction { name: "EOR".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: EOR});
-        m.insert(0x56, Instruction { name: "LSR".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: LSR});
-        m.insert(0x57, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x58, Instruction { name: "CLI".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: CLI});
-        m.insert(0x59, Instruction { name: "EOR".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABY, function: EOR});
-        m.insert(0x5A, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x5B, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x5C, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x5D, Instruction { name: "EOR".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABX, function: EOR});
-        m.insert(0x5E, Instruction { name: "LSR".to_string(), clock_cycles: 7, addr_mode: AddressingMode::ABX, function: LSR});
-        m.insert(0x5F, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x60, Instruction { name: "RTS".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: RTS});
-        m.insert(0x61, Instruction { name: "ADC".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZX, function: ADC});
-        m.insert(0x62, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x63, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x64, Instruction { name: "???".to_string(), clock_cycles: 3, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x65, Instruction { name: "ADC".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: ADC});
-        m.insert(0x66, Instruction { name: "ROR".to_string(), clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: ROR});
-        m.insert(0x67, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x68, Instruction { name: "PLA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: PLA});
-        m.insert(0x69, Instruction { name: "ADC".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: ADC});
-        m.insert(0x6A, Instruction { name: "ROR".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: ROR});
-        m.insert(0x6B, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x6C, Instruction { name: "JMP".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IND, function: JMP});
-        m.insert(0x6D, Instruction { name: "ADC".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: ADC});
-        m.insert(0x6E, Instruction { name: "ROR".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ABS, function: ROR});
-        m.insert(0x6F, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x70, Instruction { name: "BVS".to_string(), clock_cycles: 2, addr_mode: AddressingMode::REL, function: BVS});
-        m.insert(0x71, Instruction { name: "ADC".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IZY, function: ADC});
-        m.insert(0x72, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x73, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x74, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x75, Instruction { name: "ADC".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: ADC});
-        m.insert(0x76, Instruction { name: "ROR".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: ROR});
-        m.insert(0x77, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x78, Instruction { name: "SEI".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: SEI});
-        m.insert(0x79, Instruction { name: "ADC".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABY, function: ADC});
-        m.insert(0x7A, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x7B, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x7C, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x7D, Instruction { name: "ADC".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABX, function: ADC});
-        m.insert(0x7E, Instruction { name: "ROR".to_string(), clock_cycles: 7, addr_mode: AddressingMode::ABX, function: ROR});
-        m.insert(0x7F, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x80, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x81, Instruction { name: "STA".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZX, function: STA});
-        m.insert(0x82, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x83, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x84, Instruction { name: "STY".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: STY});
-        m.insert(0x85, Instruction { name: "STA".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: STA});
-        m.insert(0x86, Instruction { name: "STX".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: STX});
-        m.insert(0x87, Instruction { name: "???".to_string(), clock_cycles: 3, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x88, Instruction { name: "DEY".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: DEY});
-        m.insert(0x89, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x8A, Instruction { name: "TXA".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TXA});
-        m.insert(0x8B, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x8C, Instruction { name: "STY".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: STY});
-        m.insert(0x8D, Instruction { name: "STA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: STA});
-        m.insert(0x8E, Instruction { name: "STX".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: STX});
-        m.insert(0x8F, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x90, Instruction { name: "BCC".to_string(), clock_cycles: 2, addr_mode: AddressingMode::REL, function: BCC});
-        m.insert(0x91, Instruction { name: "STA".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZY, function: STA});
-        m.insert(0x92, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x93, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x94, Instruction { name: "STY".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: STY});
-        m.insert(0x95, Instruction { name: "STA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: STA});
-        m.insert(0x96, Instruction { name: "STX".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPY, function: STX});
-        m.insert(0x97, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x98, Instruction { name: "TYA".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TYA});
-        m.insert(0x99, Instruction { name: "STA".to_string(), clock_cycles: 5, addr_mode: AddressingMode::ABY, function: STA});
-        m.insert(0x9A, Instruction { name: "TXS".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TXS});
-        m.insert(0x9B, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x9C, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0x9D, Instruction { name: "STA".to_string(), clock_cycles: 5, addr_mode: AddressingMode::ABX, function: STA});
-        m.insert(0x9E, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0x9F, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xA0, Instruction { name: "LDY".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: LDY});
-        m.insert(0xA1, Instruction { name: "LDA".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZX, function: LDA});
-        m.insert(0xA2, Instruction { name: "LDX".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: LDX});
-        m.insert(0xA3, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xA4, Instruction { name: "LDY".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: LDY});
-        m.insert(0xA5, Instruction { name: "LDA".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: LDA});
-        m.insert(0xA6, Instruction { name: "LDX".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: LDX});
-        m.insert(0xA7, Instruction { name: "???".to_string(), clock_cycles: 3, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xA8, Instruction { name: "TAY".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TAY});
-        m.insert(0xA9, Instruction { name: "LDA".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: LDA});
-        m.insert(0xAA, Instruction { name: "TAX".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TAX});
-        m.insert(0xAB, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xAC, Instruction { name: "LDY".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: LDY});
-        m.insert(0xAD, Instruction { name: "LDA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: LDA});
-        m.insert(0xAE, Instruction { name: "LDX".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: LDX});
-        m.insert(0xAF, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xB0, Instruction { name: "BCS".to_string(), clock_cycles: 2, addr_mode: AddressingMode::REL, function: BCS});
-        m.insert(0xB1, Instruction { name: "LDA".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IZY, function: LDA});
-        m.insert(0xB2, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xB3, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xB4, Instruction { name: "LDY".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: LDY});
-        m.insert(0xB5, Instruction { name: "LDA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: LDA});
-        m.insert(0xB6, Instruction { name: "LDX".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPY, function: LDX});
-        m.insert(0xB7, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xB8, Instruction { name: "CLV".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: CLV});
-        m.insert(0xB9, Instruction { name: "LDA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABY, function: LDA});
-        m.insert(0xBA, Instruction { name: "TSX".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TSX});
-        m.insert(0xBB, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xBC, Instruction { name: "LDY".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABX, function: LDY});
-        m.insert(0xBD, Instruction { name: "LDA".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABX, function: LDA});
-        m.insert(0xBE, Instruction { name: "LDX".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABY, function: LDX});
-        m.insert(0xBF, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xC0, Instruction { name: "CPY".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: CPY});
-        m.insert(0xC1, Instruction { name: "CMP".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZX, function: CMP});
-        m.insert(0xC2, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xC3, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xC4, Instruction { name: "CPY".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: CPY});
-        m.insert(0xC5, Instruction { name: "CMP".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: CMP});
-        m.insert(0xC6, Instruction { name: "DEC".to_string(), clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: DEC});
-        m.insert(0xC7, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xC8, Instruction { name: "INY".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: INY});
-        m.insert(0xC9, Instruction { name: "CMP".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: CMP});
-        m.insert(0xCA, Instruction { name: "DEX".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: DEX});
-        m.insert(0xCB, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xCC, Instruction { name: "CPY".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: CPY});
-        m.insert(0xCD, Instruction { name: "CMP".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: CMP});
-        m.insert(0xCE, Instruction { name: "DEC".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ABS, function: DEC});
-        m.insert(0xCF, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xD0, Instruction { name: "BNE".to_string(), clock_cycles: 2, addr_mode: AddressingMode::REL, function: BNE});
-        m.insert(0xD1, Instruction { name: "CMP".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IZY, function: CMP});
-        m.insert(0xD2, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xD3, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xD4, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xD5, Instruction { name: "CMP".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: CMP});
-        m.insert(0xD6, Instruction { name: "DEC".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: DEC});
-        m.insert(0xD7, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xD8, Instruction { name: "CLD".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: CLD});
-        m.insert(0xD9, Instruction { name: "CMP".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABY, function: CMP});
-        m.insert(0xDA, Instruction { name: "NOP".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xDB, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xDC, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xDD, Instruction { name: "CMP".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABX, function: CMP});
-        m.insert(0xDE, Instruction { name: "DEC".to_string(), clock_cycles: 7, addr_mode: AddressingMode::ABX, function: DEC});
-        m.insert(0xDF, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xE0, Instruction { name: "CPX".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: CPX});
-        m.insert(0xE1, Instruction { name: "SBC".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IZX, function: SBC});
-        m.insert(0xE2, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xE3, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xE4, Instruction { name: "CPX".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: CPX});
-        m.insert(0xE5, Instruction { name: "SBC".to_string(), clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: SBC});
-        m.insert(0xE6, Instruction { name: "INC".to_string(), clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: INC});
-        m.insert(0xE7, Instruction { name: "???".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xE8, Instruction { name: "INX".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: INX});
-        m.insert(0xE9, Instruction { name: "SBC".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMM, function: SBC});
-        m.insert(0xEA, Instruction { name: "NOP".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xEB, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: SBC});
-        m.insert(0xEC, Instruction { name: "CPX".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: CPX});
-        m.insert(0xED, Instruction { name: "SBC".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABS, function: SBC});
-        m.insert(0xEE, Instruction { name: "INC".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ABS, function: INC});
-        m.insert(0xEF, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xF0, Instruction { name: "BEQ".to_string(), clock_cycles: 2, addr_mode: AddressingMode::REL, function: BEQ});
-        m.insert(0xF1, Instruction { name: "SBC".to_string(), clock_cycles: 5, addr_mode: AddressingMode::IZY, function: SBC});
-        m.insert(0xF2, Instruction { name: "???".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xF3, Instruction { name: "???".to_string(), clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xF4, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xF5, Instruction { name: "SBC".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: SBC});
-        m.insert(0xF6, Instruction { name: "INC".to_string(), clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: INC});
-        m.insert(0xF7, Instruction { name: "???".to_string(), clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xF8, Instruction { name: "SED".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: SED});
-        m.insert(0xF9, Instruction { name: "SBC".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABY, function: SBC});
-        m.insert(0xFA, Instruction { name: "NOP".to_string(), clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xFB, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
-        m.insert(0xFC, Instruction { name: "???".to_string(), clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP});
-        m.insert(0xFD, Instruction { name: "SBC".to_string(), clock_cycles: 4, addr_mode: AddressingMode::ABX, function: SBC});
-        m.insert(0xFE, Instruction { name: "INC".to_string(), clock_cycles: 7, addr_mode: AddressingMode::ABX, function: INC});
-        m.insert(0xFF, Instruction { name: "???".to_string(), clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX});
+    pub static ref INSTRUCTIONS_ARR: [Instruction; 0xFF] = {
+        let mut m: [Instruction; 0xFF] = [Default::default(); 0xFF];
+        m[0x00] = Instruction { name: "BRK", clock_cycles: 7, addr_mode: AddressingMode::IMM, function: BRK};
+        m[0x01] = Instruction { name: "ORA", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: ORA};
+        m[0x02] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x03] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x04] = Instruction { name: "???", clock_cycles: 3, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x05] = Instruction { name: "ORA", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: ORA};
+        m[0x06] = Instruction { name: "ASL", clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: ASL};
+        m[0x07] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x08] = Instruction { name: "PHP", clock_cycles: 3, addr_mode: AddressingMode::IMP, function: PHP};
+        m[0x09] = Instruction { name: "ORA", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: ORA};
+        m[0x0A] = Instruction { name: "ASL", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: ASL};
+        m[0x0B] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x0C] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x0D] = Instruction { name: "ORA", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: ORA};
+        m[0x0E] = Instruction { name: "ASL", clock_cycles: 6, addr_mode: AddressingMode::ABS, function: ASL};
+        m[0x0F] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x10] = Instruction { name: "BPL", clock_cycles: 2, addr_mode: AddressingMode::REL, function: BPL};
+        m[0x11] = Instruction { name: "ORA", clock_cycles: 5, addr_mode: AddressingMode::IZY, function: ORA};
+        m[0x12] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x13] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x14] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x15] = Instruction { name: "ORA", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: ORA};
+        m[0x16] = Instruction { name: "ASL", clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: ASL};
+        m[0x17] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x18] = Instruction { name: "CLC", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: CLC};
+        m[0x19] = Instruction { name: "ORA", clock_cycles: 4, addr_mode: AddressingMode::ABY, function: ORA};
+        m[0x1A] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x1B] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x1C] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x1D] = Instruction { name: "ORA", clock_cycles: 4, addr_mode: AddressingMode::ABX, function: ORA};
+        m[0x1E] = Instruction { name: "ASL", clock_cycles: 7, addr_mode: AddressingMode::ABX, function: ASL};
+        m[0x1F] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x20] = Instruction { name: "JSR", clock_cycles: 6, addr_mode: AddressingMode::ABS, function: JSR};
+        m[0x21] = Instruction { name: "AND", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: AND};
+        m[0x22] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x23] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x24] = Instruction { name: "BIT", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: BIT};
+        m[0x25] = Instruction { name: "AND", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: AND};
+        m[0x26] = Instruction { name: "ROL", clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: ROL};
+        m[0x27] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x28] = Instruction { name: "PLP", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: PLP};
+        m[0x29] = Instruction { name: "AND", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: AND};
+        m[0x2A] = Instruction { name: "ROL", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: ROL};
+        m[0x2B] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x2C] = Instruction { name: "BIT", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: BIT};
+        m[0x2D] = Instruction { name: "AND", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: AND};
+        m[0x2E] = Instruction { name: "ROL", clock_cycles: 6, addr_mode: AddressingMode::ABS, function: ROL};
+        m[0x2F] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x30] = Instruction { name: "BMI", clock_cycles: 2, addr_mode: AddressingMode::REL, function: BMI};
+        m[0x31] = Instruction { name: "AND", clock_cycles: 5, addr_mode: AddressingMode::IZY, function: AND};
+        m[0x32] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x33] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x34] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x35] = Instruction { name: "AND", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: AND};
+        m[0x36] = Instruction { name: "ROL", clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: ROL};
+        m[0x37] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x38] = Instruction { name: "SEC", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: SEC};
+        m[0x39] = Instruction { name: "AND", clock_cycles: 4, addr_mode: AddressingMode::ABY, function: AND};
+        m[0x3A] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x3B] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x3C] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x3D] = Instruction { name: "AND", clock_cycles: 4, addr_mode: AddressingMode::ABX, function: AND};
+        m[0x3E] = Instruction { name: "ROL", clock_cycles: 7, addr_mode: AddressingMode::ABX, function: ROL};
+        m[0x3F] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x40] = Instruction { name: "RTI", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: RTI};
+        m[0x41] = Instruction { name: "EOR", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: EOR};
+        m[0x42] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x43] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x44] = Instruction { name: "???", clock_cycles: 3, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x45] = Instruction { name: "EOR", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: EOR};
+        m[0x46] = Instruction { name: "LSR", clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: LSR};
+        m[0x47] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x48] = Instruction { name: "PHA", clock_cycles: 3, addr_mode: AddressingMode::IMP, function: PHA};
+        m[0x49] = Instruction { name: "EOR", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: EOR};
+        m[0x4A] = Instruction { name: "LSR", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: LSR};
+        m[0x4B] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x4C] = Instruction { name: "JMP", clock_cycles: 3, addr_mode: AddressingMode::ABS, function: JMP};
+        m[0x4D] = Instruction { name: "EOR", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: EOR};
+        m[0x4E] = Instruction { name: "LSR", clock_cycles: 6, addr_mode: AddressingMode::ABS, function: LSR};
+        m[0x4F] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x50] = Instruction { name: "BVC", clock_cycles: 2, addr_mode: AddressingMode::REL, function: BVC};
+        m[0x51] = Instruction { name: "EOR", clock_cycles: 5, addr_mode: AddressingMode::IZY, function: EOR};
+        m[0x52] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x53] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x54] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x55] = Instruction { name: "EOR", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: EOR};
+        m[0x56] = Instruction { name: "LSR", clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: LSR};
+        m[0x57] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x58] = Instruction { name: "CLI", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: CLI};
+        m[0x59] = Instruction { name: "EOR", clock_cycles: 4, addr_mode: AddressingMode::ABY, function: EOR};
+        m[0x5A] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x5B] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x5C] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x5D] = Instruction { name: "EOR", clock_cycles: 4, addr_mode: AddressingMode::ABX, function: EOR};
+        m[0x5E] = Instruction { name: "LSR", clock_cycles: 7, addr_mode: AddressingMode::ABX, function: LSR};
+        m[0x5F] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x60] = Instruction { name: "RTS", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: RTS};
+        m[0x61] = Instruction { name: "ADC", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: ADC};
+        m[0x62] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x63] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x64] = Instruction { name: "???", clock_cycles: 3, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x65] = Instruction { name: "ADC", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: ADC};
+        m[0x66] = Instruction { name: "ROR", clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: ROR};
+        m[0x67] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x68] = Instruction { name: "PLA", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: PLA};
+        m[0x69] = Instruction { name: "ADC", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: ADC};
+        m[0x6A] = Instruction { name: "ROR", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: ROR};
+        m[0x6B] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x6C] = Instruction { name: "JMP", clock_cycles: 5, addr_mode: AddressingMode::IND, function: JMP};
+        m[0x6D] = Instruction { name: "ADC", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: ADC};
+        m[0x6E] = Instruction { name: "ROR", clock_cycles: 6, addr_mode: AddressingMode::ABS, function: ROR};
+        m[0x6F] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x70] = Instruction { name: "BVS", clock_cycles: 2, addr_mode: AddressingMode::REL, function: BVS};
+        m[0x71] = Instruction { name: "ADC", clock_cycles: 5, addr_mode: AddressingMode::IZY, function: ADC};
+        m[0x72] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x73] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x74] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x75] = Instruction { name: "ADC", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: ADC};
+        m[0x76] = Instruction { name: "ROR", clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: ROR};
+        m[0x77] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x78] = Instruction { name: "SEI", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: SEI};
+        m[0x79] = Instruction { name: "ADC", clock_cycles: 4, addr_mode: AddressingMode::ABY, function: ADC};
+        m[0x7A] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x7B] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x7C] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x7D] = Instruction { name: "ADC", clock_cycles: 4, addr_mode: AddressingMode::ABX, function: ADC};
+        m[0x7E] = Instruction { name: "ROR", clock_cycles: 7, addr_mode: AddressingMode::ABX, function: ROR};
+        m[0x7F] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x80] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x81] = Instruction { name: "STA", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: STA};
+        m[0x82] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x83] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x84] = Instruction { name: "STY", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: STY};
+        m[0x85] = Instruction { name: "STA", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: STA};
+        m[0x86] = Instruction { name: "STX", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: STX};
+        m[0x87] = Instruction { name: "???", clock_cycles: 3, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x88] = Instruction { name: "DEY", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: DEY};
+        m[0x89] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x8A] = Instruction { name: "TXA", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TXA};
+        m[0x8B] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x8C] = Instruction { name: "STY", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: STY};
+        m[0x8D] = Instruction { name: "STA", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: STA};
+        m[0x8E] = Instruction { name: "STX", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: STX};
+        m[0x8F] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x90] = Instruction { name: "BCC", clock_cycles: 2, addr_mode: AddressingMode::REL, function: BCC};
+        m[0x91] = Instruction { name: "STA", clock_cycles: 6, addr_mode: AddressingMode::IZY, function: STA};
+        m[0x92] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x93] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x94] = Instruction { name: "STY", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: STY};
+        m[0x95] = Instruction { name: "STA", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: STA};
+        m[0x96] = Instruction { name: "STX", clock_cycles: 4, addr_mode: AddressingMode::ZPY, function: STX};
+        m[0x97] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x98] = Instruction { name: "TYA", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TYA};
+        m[0x99] = Instruction { name: "STA", clock_cycles: 5, addr_mode: AddressingMode::ABY, function: STA};
+        m[0x9A] = Instruction { name: "TXS", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TXS};
+        m[0x9B] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x9C] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x9D] = Instruction { name: "STA", clock_cycles: 5, addr_mode: AddressingMode::ABX, function: STA};
+        m[0x9E] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0x9F] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xA0] = Instruction { name: "LDY", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: LDY};
+        m[0xA1] = Instruction { name: "LDA", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: LDA};
+        m[0xA2] = Instruction { name: "LDX", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: LDX};
+        m[0xA3] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xA4] = Instruction { name: "LDY", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: LDY};
+        m[0xA5] = Instruction { name: "LDA", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: LDA};
+        m[0xA6] = Instruction { name: "LDX", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: LDX};
+        m[0xA7] = Instruction { name: "???", clock_cycles: 3, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xA8] = Instruction { name: "TAY", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TAY};
+        m[0xA9] = Instruction { name: "LDA", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: LDA};
+        m[0xAA] = Instruction { name: "TAX", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TAX};
+        m[0xAB] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xAC] = Instruction { name: "LDY", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: LDY};
+        m[0xAD] = Instruction { name: "LDA", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: LDA};
+        m[0xAE] = Instruction { name: "LDX", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: LDX};
+        m[0xAF] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xB0] = Instruction { name: "BCS", clock_cycles: 2, addr_mode: AddressingMode::REL, function: BCS};
+        m[0xB1] = Instruction { name: "LDA", clock_cycles: 5, addr_mode: AddressingMode::IZY, function: LDA};
+        m[0xB2] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xB3] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xB4] = Instruction { name: "LDY", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: LDY};
+        m[0xB5] = Instruction { name: "LDA", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: LDA};
+        m[0xB6] = Instruction { name: "LDX", clock_cycles: 4, addr_mode: AddressingMode::ZPY, function: LDX};
+        m[0xB7] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xB8] = Instruction { name: "CLV", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: CLV};
+        m[0xB9] = Instruction { name: "LDA", clock_cycles: 4, addr_mode: AddressingMode::ABY, function: LDA};
+        m[0xBA] = Instruction { name: "TSX", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: TSX};
+        m[0xBB] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xBC] = Instruction { name: "LDY", clock_cycles: 4, addr_mode: AddressingMode::ABX, function: LDY};
+        m[0xBD] = Instruction { name: "LDA", clock_cycles: 4, addr_mode: AddressingMode::ABX, function: LDA};
+        m[0xBE] = Instruction { name: "LDX", clock_cycles: 4, addr_mode: AddressingMode::ABY, function: LDX};
+        m[0xBF] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xC0] = Instruction { name: "CPY", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: CPY};
+        m[0xC1] = Instruction { name: "CMP", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: CMP};
+        m[0xC2] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xC3] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xC4] = Instruction { name: "CPY", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: CPY};
+        m[0xC5] = Instruction { name: "CMP", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: CMP};
+        m[0xC6] = Instruction { name: "DEC", clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: DEC};
+        m[0xC7] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xC8] = Instruction { name: "INY", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: INY};
+        m[0xC9] = Instruction { name: "CMP", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: CMP};
+        m[0xCA] = Instruction { name: "DEX", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: DEX};
+        m[0xCB] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xCC] = Instruction { name: "CPY", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: CPY};
+        m[0xCD] = Instruction { name: "CMP", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: CMP};
+        m[0xCE] = Instruction { name: "DEC", clock_cycles: 6, addr_mode: AddressingMode::ABS, function: DEC};
+        m[0xCF] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xD0] = Instruction { name: "BNE", clock_cycles: 2, addr_mode: AddressingMode::REL, function: BNE};
+        m[0xD1] = Instruction { name: "CMP", clock_cycles: 5, addr_mode: AddressingMode::IZY, function: CMP};
+        m[0xD2] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xD3] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xD4] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xD5] = Instruction { name: "CMP", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: CMP};
+        m[0xD6] = Instruction { name: "DEC", clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: DEC};
+        m[0xD7] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xD8] = Instruction { name: "CLD", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: CLD};
+        m[0xD9] = Instruction { name: "CMP", clock_cycles: 4, addr_mode: AddressingMode::ABY, function: CMP};
+        m[0xDA] = Instruction { name: "NOP", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xDB] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xDC] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xDD] = Instruction { name: "CMP", clock_cycles: 4, addr_mode: AddressingMode::ABX, function: CMP};
+        m[0xDE] = Instruction { name: "DEC", clock_cycles: 7, addr_mode: AddressingMode::ABX, function: DEC};
+        m[0xDF] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xE0] = Instruction { name: "CPX", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: CPX};
+        m[0xE1] = Instruction { name: "SBC", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: SBC};
+        m[0xE2] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xE3] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xE4] = Instruction { name: "CPX", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: CPX};
+        m[0xE5] = Instruction { name: "SBC", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: SBC};
+        m[0xE6] = Instruction { name: "INC", clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: INC};
+        m[0xE7] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xE8] = Instruction { name: "INX", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: INX};
+        m[0xE9] = Instruction { name: "SBC", clock_cycles: 2, addr_mode: AddressingMode::IMM, function: SBC};
+        m[0xEA] = Instruction { name: "NOP", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xEB] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: SBC};
+        m[0xEC] = Instruction { name: "CPX", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: CPX};
+        m[0xED] = Instruction { name: "SBC", clock_cycles: 4, addr_mode: AddressingMode::ABS, function: SBC};
+        m[0xEE] = Instruction { name: "INC", clock_cycles: 6, addr_mode: AddressingMode::ABS, function: INC};
+        m[0xEF] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xF0] = Instruction { name: "BEQ", clock_cycles: 2, addr_mode: AddressingMode::REL, function: BEQ};
+        m[0xF1] = Instruction { name: "SBC", clock_cycles: 5, addr_mode: AddressingMode::IZY, function: SBC};
+        m[0xF2] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xF3] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xF4] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xF5] = Instruction { name: "SBC", clock_cycles: 4, addr_mode: AddressingMode::ZPX, function: SBC};
+        m[0xF6] = Instruction { name: "INC", clock_cycles: 6, addr_mode: AddressingMode::ZPX, function: INC};
+        m[0xF7] = Instruction { name: "???", clock_cycles: 6, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xF8] = Instruction { name: "SED", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: SED};
+        m[0xF9] = Instruction { name: "SBC", clock_cycles: 4, addr_mode: AddressingMode::ABY, function: SBC};
+        m[0xFA] = Instruction { name: "NOP", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xFB] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
+        m[0xFC] = Instruction { name: "???", clock_cycles: 4, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0xFD] = Instruction { name: "SBC", clock_cycles: 4, addr_mode: AddressingMode::ABX, function: SBC};
+        m[0xFE] = Instruction { name: "INC", clock_cycles: 7, addr_mode: AddressingMode::ABX, function: INC};
+        m[0xFF] = Instruction { name: "???", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: XXX};
         m
     };
 }
@@ -461,16 +474,17 @@ fn ADC(cpu :&mut Cpu6502) -> u8 {
     cpu.set_flag(Flags::C, cpu.temp > 255);
 
 	// The Zero flag is set if the result is 0
-	cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0);
+	cpu.set_flag(Flags::Z, cpu.temp as u8 == 0);
 	
 	// The signed Overflow flag is set based on all that up there! :D
-	cpu.set_flag(Flags::V, (!(cpu.acc as u16 ^ cpu.fetched as u16) & (cpu.acc as u16 ^ cpu.temp as u16)) & 0x0080 == 0x0080);
+	cpu.set_flag(Flags::V, (!(cpu.acc ^ cpu.fetched) as u16 & (cpu.acc as u16 ^ cpu.temp)) & 0x0080 > 0);
+    // cpu.set_flag(Flags::V, (!(cpu.acc ^ cpu.fetched ) & (cpu.acc ^ cpu.temp as u8)) & 0x80 > 0);
 	
 	// The negative flag is set to the most significant bit of the result
-	cpu.set_flag(Flags::N, cpu.temp & 0x80 == 0x80);
+	cpu.set_flag(Flags::N, cpu.temp & 0x80 > 0);
 
 	// Load the result into the accumulator (it's 8-bit dont forget!)
-	cpu.acc = (cpu.temp & 0x00FF) as u8;
+	cpu.acc = cpu.temp as u8;
 	
 	// This instruction has the potential to require an additional clock cycle
 	1
@@ -484,7 +498,7 @@ fn AND(cpu :&mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.acc = cpu.acc & cpu.fetched;
     cpu.set_flag(Flags::Z, cpu.acc == 0x00);
-    cpu.set_flag(Flags::N, cpu.acc & 0x80 == 0x80);
+    cpu.set_flag(Flags::N, cpu.acc & 0x80 > 0);
     1
 }
 
@@ -497,11 +511,11 @@ fn ASL(cpu :&mut Cpu6502) -> u8 {
     cpu.temp = (cpu.fetched as u16) << 1;
     cpu.set_flag(Flags::C, (cpu.temp & 0xFF00) > 0);
     cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0);
-    cpu.set_flag(Flags::N, (cpu.temp & 0x80) == 0x80);
+    cpu.set_flag(Flags::N, (cpu.temp & 0x80) > 0);
     if cpu.addressing_mode == AddressingMode::IMP {
         cpu.acc = (cpu.temp & 0x00FF) as u8;
     } else {
-        cpu.write_bus(cpu.addr_abs, (cpu.temp & 0x00FF) as u8)
+        cpu.write_bus(cpu.addr_abs, cpu.temp as u8)
     }
     0
 }
@@ -560,9 +574,9 @@ fn BEQ(cpu :&mut Cpu6502) -> u8 {
 fn BIT(cpu :&mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.acc & cpu.fetched) as u16;
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x00);
-    cpu.set_flag(Flags::N, (cpu.fetched & (1 << 7)) > 0);
-    cpu.set_flag(Flags::V, (cpu.fetched & (1 << 6)) > 0);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
+    cpu.set_flag(Flags::N, (cpu.fetched & Flags::N) > 0);
+    cpu.set_flag(Flags::V, (cpu.fetched & Flags::V) > 0);
     0
 }
 
@@ -618,10 +632,8 @@ fn BPL(cpu :&mut Cpu6502) -> u8 {
 fn BRK(cpu :&mut Cpu6502) -> u8 {
     cpu.program_counter += 1;
     cpu.set_flag(Flags::I, true);
-    cpu.write_bus(0x0100 + cpu.stack_pointer as u16, ((cpu.program_counter >> 8) & 0x00FF) as u8);
-    cpu.stack_pointer -= 1;
-    cpu.write_bus(0x0100 + cpu.stack_pointer as u16, (cpu.program_counter & 0x00FF) as u8);
-    cpu.stack_pointer -= 1;
+    cpu.write_bus_two_bytes(0x0100 + cpu.stack_pointer as u16, cpu.program_counter);
+    cpu.stack_pointer -= 2;
     
     cpu.set_flag(Flags::B, true);
     cpu.write_bus(0x0100 + cpu.stack_pointer as u16, cpu.status);
@@ -703,7 +715,7 @@ fn CMP(cpu :&mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.acc - cpu.fetched) as u16;
     cpu.set_flag(Flags::C, cpu.acc >= cpu.fetched);
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x0000);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
     cpu.set_flag(Flags::N, cpu.temp & 0x0080 > 0);
     0
 }
@@ -716,7 +728,7 @@ fn CPX(cpu :&mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.x_reg - cpu.fetched) as u16;
     cpu.set_flag(Flags::C, cpu.x_reg >= cpu.fetched);
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x0000);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
     cpu.set_flag(Flags::N, cpu.temp & 0x0080 > 0);
     0
 }
@@ -729,7 +741,7 @@ fn CPY(cpu :&mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.y_reg - cpu.fetched) as u16;
     cpu.set_flag(Flags::C, cpu.y_reg >= cpu.fetched);
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x0000);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
     cpu.set_flag(Flags::N, cpu.temp & 0x0080 > 0);
     0
 }
@@ -741,8 +753,8 @@ fn CPY(cpu :&mut Cpu6502) -> u8 {
 fn DEC(cpu :&mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.fetched - 1) as u16;
-    cpu.write_bus(cpu.addr_abs, (cpu.temp & 0x00FF) as u8);
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x0000);
+    cpu.write_bus(cpu.addr_abs, cpu.temp as u8);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
     cpu.set_flag(Flags::N, cpu.temp & 0x0080 > 0);
     0
 }
@@ -789,7 +801,7 @@ fn INC(cpu :&mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.fetched + 1) as u16;
     cpu.write_bus(cpu.addr_abs, (cpu.temp & 0x00FF) as u8);
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x0000);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
     cpu.set_flag(Flags::N, cpu.temp & 0x0080 > 0);
     0
 }
@@ -862,7 +874,7 @@ fn LSR(cpu :&mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.set_flag(Flags::C, cpu.fetched & 1 > 0);
     cpu.temp = (cpu.fetched >> 1) as u16;
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x0000);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
     cpu.set_flag(Flags::N, cpu.temp & 0x0080 > 0);
     if cpu.addressing_mode == AddressingMode::IMP {
         cpu.acc = (cpu.temp & 0x00FF) as u8;
@@ -906,7 +918,7 @@ fn PHA(cpu :&mut Cpu6502) -> u8 {
 // Note:        Break flag is set to 1 before push
 #[allow(non_snake_case)]
 fn PHP(cpu :&mut Cpu6502) -> u8 {
-    cpu.write_bus(0x0100 + cpu.stack_pointer as u16, cpu.status | Flags::B as u8 | Flags::U as u8);
+    cpu.write_bus(0x0100 + cpu.stack_pointer as u16, cpu.status | Flags::B | Flags::U);
     cpu.set_flag(Flags::B, false);
     cpu.set_flag(Flags::U, false);
     cpu.stack_pointer -= 1;
@@ -941,7 +953,7 @@ fn ROL(cpu :&mut Cpu6502) -> u8 {
     cpu.temp = ((cpu.fetched << 1) | cpu.get_flag(Flags::C)) as u16;
     let x: u8 = (cpu.temp & 0x00FF) as u8;
     cpu.set_flag(Flags::C, cpu.temp & 0xFF00 > 0);
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x0000);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
     cpu.set_flag(Flags::N, cpu.temp & 0x0080 > 0);
     if cpu.addressing_mode == AddressingMode::IMP { cpu.acc = x }
     else { cpu.write_bus(cpu.addr_abs, x) }
@@ -954,7 +966,7 @@ fn ROR(cpu :&mut Cpu6502) -> u8 {
     cpu.temp = ((cpu.fetched >> 1) | cpu.get_flag(Flags::C) << 7) as u16;
     let x: u8 = (cpu.temp & 0x00FF) as u8;
     cpu.set_flag(Flags::C, cpu.fetched & 0x01 > 0);
-    cpu.set_flag(Flags::Z, (cpu.temp & 0x00FF) == 0x0000);
+    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
     cpu.set_flag(Flags::N, cpu.temp & 0x0080 > 0);
     if cpu.addressing_mode == AddressingMode::IMP { cpu.acc = x }
     else { cpu.write_bus(cpu.addr_abs, x) }
@@ -965,8 +977,8 @@ fn ROR(cpu :&mut Cpu6502) -> u8 {
 fn RTI(cpu :&mut Cpu6502) -> u8 {
     cpu.stack_pointer += 1;
     cpu.status = cpu.read_bus(0x0100 + (cpu.stack_pointer as u16));
-    cpu.status &= !(Flags::B as u8);
-    cpu.status &= !(Flags::U as u8);
+    cpu.status &= !Flags::B;
+    cpu.status &= !Flags::U;
     cpu.stack_pointer += 1;
     cpu.program_counter = cpu.read_bus_two_bytes(0x0100 + (cpu.stack_pointer as u16));
     cpu.stack_pointer += 1;
