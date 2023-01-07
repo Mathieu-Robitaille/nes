@@ -1,0 +1,3 @@
+{
+    "rust-analyzer.files.excludeDirs": ["src/instructions/instruction_table"],
+}

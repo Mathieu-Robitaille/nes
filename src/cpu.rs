@@ -1,35 +1,15 @@
-// 6502 CPU
-// static maps: [u32; 23] = [
-//     0x4000, 0x4001, 0x4002, 0x4003, 0x4004, 0x4005, 0x4006, 0x4007,
-//     0x4008, 0x4009, 0x400A, 0x400B, 0x400C, 0x400D, 0x400E, 0x400F,
-//     0x4010, 0x4011, 0x4012, 0x4013, 0x4014, 0x4015, 0x4016, 0x4017,
-// ];
-
-// static test_range: [u32; ] = [
-//     0x4018, 0x4019, 0x401A, 0x401B, 0x401C, 0x401D, 0x401E, 0x401F,    
-// ];
-
-// (16384..=16407)
-
 use crate::bus::{Bus, BusReader, BusWriter};
-use bitflags::bitflags;
 use crate::instructions::{
-    Instruction,
-    AddressingMode, 
-    INSTRUCTIONS_ARR, 
-    process_instruction_addressing_mode
+    instruction_table::instruction_table::INSTRUCTIONS_ARR,
+    instruction::{
+        process_instruction_addressing_mode, AddressingMode, Instruction,
+    }
 };
+use bitflags::bitflags;
 use std::{
     cell::RefCell,
+    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign},
     rc::Rc,
-    ops::{
-        BitAnd,
-        BitAndAssign,
-        BitOr,
-        BitOrAssign,
-        BitXor,
-        BitXorAssign,
-    }
 };
 
 bitflags! {
@@ -101,14 +81,17 @@ pub struct Cpu6502 {
     pub(crate) opcode: u8,
     pub(crate) clock_count: u32,
 
-    bus_handle: Option<Rc<RefCell<Bus>>>
+    bus_handle: Option<Rc<RefCell<Bus>>>,
 }
 
 impl Cpu6502 {
+    pub(crate) fn read_bus(&mut self, addr: u16) -> u8 {
+        self.bus_read(addr, false)
+    }
+    pub(crate) fn write_bus(&mut self, addr: u16, data: u8) {
+        self.bus_write(addr, data)
+    }
 
-    pub(crate) fn read_bus(&mut self, addr: u16) -> u8 { self.bus_read(addr, false) }
-    pub(crate) fn write_bus(&mut self, addr: u16, data: u8) { self.bus_write(addr, data) }
-    
     pub(crate) fn get_flag(&self, flag: Flags) -> u8 {
         if self.status & flag > 0 {
             return 1;
@@ -116,7 +99,20 @@ impl Cpu6502 {
             return 0;
         }
     }
-    
+
+    pub(crate) fn read_bus_two_bytes(&mut self, addr: u16) -> u16 {
+        let lo: u16 = self.bus_read(addr, false) as u16;
+        let hi: u16 = (self.bus_read(addr + 1, false) as u16) << 8;
+        hi | lo
+    }
+
+    pub(crate) fn write_bus_two_bytes(&mut self, addr: u16, data: u16) {
+        let hi: u8 = (data >> 8) as u8;
+        let lo: u8 = data as u8;
+        self.write_bus(addr, hi);
+        self.write_bus(addr - 1, lo);
+    }
+
     pub(crate) fn set_flag(&mut self, flag: Flags, v: bool) {
         if v {
             self.status = self.status | flag;
@@ -129,7 +125,9 @@ impl Cpu6502 {
         self.clock_count += 1;
         self.cycles -= 1;
 
-        if self.cycles != 0 { return; }
+        if self.cycles != 0 {
+            return;
+        }
 
         self.opcode = self.read_bus(self.program_counter);
 
@@ -149,19 +147,6 @@ impl Cpu6502 {
         self.set_flag(Flags::U, true);
     }
 
-    pub(crate) fn read_bus_two_bytes(&mut self, addr: u16) -> u16 { 
-        let lo: u16 = self.bus_read(addr, false) as u16;
-        let hi: u16 = (self.bus_read(addr + 1, false) as u16) << 8;
-        hi | lo
-    }
-
-    pub(crate) fn write_bus_two_bytes(&mut self, addr: u16, data: u16) { 
-        let hi: u8 = ((data >> 8) & 0x00FF) as u8;
-        let lo: u8 = (data & 0x00FF) as u8;
-        self.write_bus(addr, hi);
-        self.write_bus(addr -1, lo);
-    }
-
     pub(crate) fn reset(&mut self) {
         self.addr_abs = 0xFFFC;
         self.program_counter = self.read_bus_two_bytes(self.addr_abs);
@@ -179,7 +164,9 @@ impl Cpu6502 {
     }
 
     fn irq(&mut self) {
-        if self.get_flag(Flags::I) != 0 { return; }
+        if self.get_flag(Flags::I) != 0 {
+            return;
+        }
         self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.program_counter);
         self.stack_pointer -= 2;
 
@@ -218,35 +205,29 @@ impl Cpu6502 {
         self.fetched
     }
 
-    fn new() -> Self {
-        Cpu6502 { 
-            acc: 0x00, 
-            x_reg: 0x00, 
-            y_reg: 0x00, 
-            stack_pointer: 0x00, 
-            program_counter: 0x0000, 
-            status: 0x00, 
-            fetched: 0x00, 
+    fn new(bh: Rc<RefCell<Bus>>) -> Self {
+        Cpu6502 {
+            acc: 0x00,
+            x_reg: 0x00,
+            y_reg: 0x00,
+            stack_pointer: 0x00,
+            program_counter: 0x0000,
+            status: 0x00,
+            fetched: 0x00,
             temp: 0x0000,
-            addr_abs: 0x0000, 
-            addr_rel: 0x00, 
+            addr_abs: 0x0000,
+            addr_rel: 0x00,
             addressing_mode: AddressingMode::ABS,
             opcode: 0x00,
             cycles: 0,
             clock_count: 0,
-            bus_handle: None
+            bus_handle: Some(bh),
         }
     }
 }
 
-impl Default for Cpu6502 {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl BusReader for Cpu6502 {
-    fn bus_read(&mut self, addr: u16, _read_only: bool) -> u8 { 
+    fn bus_read(&mut self, addr: u16, _read_only: bool) -> u8 {
         if let Some(x) = &self.bus_handle {
             return x.borrow_mut().read(addr, false);
         }
