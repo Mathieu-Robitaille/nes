@@ -54,7 +54,7 @@ pub fn ASL(cpu: &mut Cpu6502) -> u8 {
 pub fn BCC(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::C) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = cpu.program_counter + cpu.addr_rel;
+        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
 
         if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
             cpu.cycles += 1;
@@ -70,7 +70,7 @@ pub fn BCC(cpu: &mut Cpu6502) -> u8 {
 pub fn BCS(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::C) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = cpu.program_counter + cpu.addr_rel;
+        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
 
         if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
             cpu.cycles += 1;
@@ -86,7 +86,7 @@ pub fn BCS(cpu: &mut Cpu6502) -> u8 {
 pub fn BEQ(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::Z) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = cpu.program_counter + cpu.addr_rel;
+        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
 
         if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
             cpu.cycles += 1;
@@ -112,7 +112,7 @@ pub fn BIT(cpu: &mut Cpu6502) -> u8 {
 pub fn BMI(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::N) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = cpu.program_counter + cpu.addr_rel;
+        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -127,7 +127,15 @@ pub fn BMI(cpu: &mut Cpu6502) -> u8 {
 pub fn BNE(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::Z) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = cpu.program_counter + cpu.addr_rel;
+
+        
+        // println!("PROGRAM_COUNTER: {:04X?} | addr_rel: {:04X?}", cpu.program_counter, cpu.addr_rel);
+        // println!("PROGRAM_COUNTER: {:b} | addr_rel: {:b}", cpu.program_counter, cpu.addr_rel);
+        // Gross hack
+        // let (a, _) = cpu.program_counter.overflowing_add(cpu.addr_rel);
+
+        // println!("x: {:04X?}", a);
+        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -142,7 +150,7 @@ pub fn BNE(cpu: &mut Cpu6502) -> u8 {
 pub fn BPL(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::N) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = cpu.program_counter + cpu.addr_rel;
+        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -175,7 +183,7 @@ pub fn BRK(cpu: &mut Cpu6502) -> u8 {
 pub fn BVC(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::V) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = cpu.program_counter + cpu.addr_rel;
+        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -190,7 +198,7 @@ pub fn BVC(cpu: &mut Cpu6502) -> u8 {
 pub fn BVS(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::V) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = cpu.program_counter + cpu.addr_rel;
+        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -654,14 +662,19 @@ fn set_carry(cpu: &mut Cpu6502, reg: u16) {
 }
 
 fn set_z_if_reg_zero(cpu: &mut Cpu6502, reg: u8) {
-    cpu.set_flag(Flags::Z, cpu.acc == 0);
+    cpu.set_flag(Flags::Z, reg == 0);
 }
 
 fn set_n_if_bit_set(cpu: &mut Cpu6502, reg: u8) {
-    cpu.set_flag(Flags::N, cpu.acc & 0x80 > 0);
+    cpu.set_flag(Flags::N, reg & 0x80 > 0);
 }
 
 fn set_nz_flags(cpu: &mut Cpu6502, reg: u8) {
     set_z_if_reg_zero(cpu, reg);
     set_n_if_bit_set(cpu, reg);
+}
+
+fn branch_add(a: u16, b: u16) -> u16 {
+    let (r, _) = a.overflowing_add(b);
+    r
 }

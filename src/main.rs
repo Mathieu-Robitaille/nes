@@ -3,38 +3,27 @@ extern crate olc_pixel_game_engine;
 
 use crate::olc_pixel_game_engine as olc;
 
-struct ExampleProgram {}
 
 mod bus;
 mod cpu;
 mod instructions;
 mod disk;
+mod cartridge;
+mod disassembler;
+mod debug;
+mod nes;
 
-impl olc::Application for ExampleProgram {
-    fn on_user_create(&mut self) -> Result<(), olc::Error> {
-        // Mirrors `olcPixelGameEngine::onUserCreate`. Your code goes here.
-        Ok(())
-    }
-
-    fn on_user_update(&mut self, _elapsed_time: f32) -> Result<(), olc::Error> {
-        // Mirrors `olcPixelGameEngine::onUserUpdate`. Your code goes here.
-
-        // Clears screen and sets black colour.
-        olc::clear(olc::BLACK);
-        // Prints the string starting at the position (40, 40) and using white colour.
-        olc::draw_string(40, 40, "Hello, World!", olc::WHITE)?;
-        Ok(())
-    }
-
-    fn on_user_destroy(&mut self) -> Result<(), olc::Error> {
-        // Mirrors `olcPixelGameEngine::onUserDestroy`. Your code goes here.
-        Ok(())
-    }
-}
+use bus::Bus;
+use nes::Nes;
+use cpu::Cpu6502;
 
 fn main() {
-    let mut example = ExampleProgram {};
+    let mut bus: Bus = Bus::new([0x00; 64 * 1024]);
+    let mut nes: Nes = Nes { cpu: Cpu6502::new(bus), decoded_rom: None };
     // Launches the program in 200x100 "pixels" screen, where each "pixel" is 4x4 pixel square,
     // and starts the main game loop.
-    olc::start("Hello, World!", &mut example, 200, 100, 4, 4).unwrap();
+    olc::start("Hello, World!", &mut nes, 800, 400, 1, 1).unwrap();
 }
+
+
+

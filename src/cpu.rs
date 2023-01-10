@@ -5,6 +5,8 @@ use crate::instructions::{
         process_instruction_addressing_mode, AddressingMode, Instruction,
     }
 };
+
+use std::io;
 use bitflags::bitflags;
 use std::{
     cell::RefCell,
@@ -14,14 +16,14 @@ use std::{
 
 bitflags! {
     pub struct Flags: u8 {
-        const C = 1 << 0; // Carry Bit
-        const Z = 1 << 1; // Zero
-        const I = 1 << 2; // Disable Interupts
-        const D = 1 << 3; // Decimal Mode
-        const B = 1 << 4; // Break
-        const U = 1 << 5; // Unused
-        const V = 1 << 6; // Overflow
-        const N = 1 << 7; // Negative
+        const C = 1 << 0; // 0x01 // Carry Bit
+        const Z = 1 << 1; // 0x02 // Zero
+        const I = 1 << 2; // 0x04 // Disable Interupts
+        const D = 1 << 3; // 0x08 // Decimal Mode
+        const B = 1 << 4; // 0x10 // Break
+        const U = 1 << 5; // 0x20 // Unused
+        const V = 1 << 6; // 0x40 // Overflow
+        const N = 1 << 7; // 0x80 // Negative
     }
 }
 
@@ -81,7 +83,7 @@ pub struct Cpu6502 {
     pub(crate) opcode: u8,
     pub(crate) clock_count: u32,
 
-    bus_handle: Option<Rc<RefCell<Bus>>>,
+    pub(crate) bus: Bus,
 }
 
 impl Cpu6502 {
@@ -122,29 +124,52 @@ impl Cpu6502 {
     }
 
     pub(crate) fn clock(&mut self) {
+        let manual_debug = false;
+
+        if self.cycles == 0 {
+            self.opcode = self.read_bus(self.program_counter);
+
+
+
+            if manual_debug { println!("Set Opcode to {:02X?}", self.opcode); }
+            // make suuuuuuure its set
+            self.set_flag(Flags::U, true);
+
+            self.program_counter += 1;
+
+            if (0x00..0xFF).contains(&self.opcode) {
+                if manual_debug { 
+                    println!("Valid opcode: {:02X?}", self.opcode);
+                    println!("Valid opcode: {:?}", self.opcode as usize);
+                }
+                let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
+                if manual_debug { 
+                    println!("Got instruction {:?}", ins.name);
+                }
+                let additional_cycle1: u8 = process_instruction_addressing_mode(ins, self);
+                let additional_cycle2: u8 = (ins.function)(self);
+                self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
+            }
+
+
+            
+
+            if manual_debug {
+                println!("Cycle: {:?} | Cy: {:?} | A: {:02X?} | X: {:02X?} | Y: {:02X?} | Op: {:02X?} | Aa: {:04X?} | Ar: {:04X?} | Pc: {:04X?} | S: {:b}", self.clock_count, self.cycles, self.acc, self.x_reg, self.y_reg, self.opcode, self.addr_abs, self.addr_rel, self.program_counter, self.status);
+                println!("\tMemory: ");
+                for i in 0x0000..=0x0002 {
+                    println!("\t{:04X?}: {:02X?}", i as u16, self.read_bus(i as u16));
+                }
+                let mut buf = String::new();
+                io::stdin().read_line(&mut buf);
+
+            }
+            // make suuuuuuure its set
+            self.set_flag(Flags::U, true);
+        }
+        
         self.clock_count += 1;
         self.cycles -= 1;
-
-        if self.cycles != 0 {
-            return;
-        }
-
-        self.opcode = self.read_bus(self.program_counter);
-
-        // make suuuuuuure its set
-        self.set_flag(Flags::U, true);
-
-        self.program_counter += 1;
-
-        if (0x00..=0xFF).contains(&self.opcode) {
-            let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
-            let additional_cycle1: u8 = process_instruction_addressing_mode(ins, self);
-            let additional_cycle2: u8 = (ins.function)(self);
-            self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
-        }
-
-        // make suuuuuuure its set
-        self.set_flag(Flags::U, true);
     }
 
     pub(crate) fn reset(&mut self) {
@@ -205,7 +230,12 @@ impl Cpu6502 {
         self.fetched
     }
 
-    fn new(bh: Rc<RefCell<Bus>>) -> Self {
+    pub fn complete(&self) -> bool {
+        if self.cycles == 0 { return true; }
+        false
+    }
+
+    pub fn new(b: Bus) -> Self {
         Cpu6502 {
             acc: 0x00,
             x_reg: 0x00,
@@ -219,26 +249,22 @@ impl Cpu6502 {
             addr_rel: 0x00,
             addressing_mode: AddressingMode::ABS,
             opcode: 0x00,
-            cycles: 0,
+            cycles: 1,
             clock_count: 0,
-            bus_handle: Some(bh),
+            bus: b,
         }
     }
 }
 
 impl BusReader for Cpu6502 {
     fn bus_read(&mut self, addr: u16, _read_only: bool) -> u8 {
-        if let Some(x) = &self.bus_handle {
-            return x.borrow_mut().read(addr, false);
-        }
-        0x00
+        self.bus.read(addr, false)
     }
 }
 
 impl BusWriter for Cpu6502 {
     fn bus_write(&mut self, addr: u16, data: u8) {
-        if let Some(x) = &self.bus_handle {
-            x.borrow_mut().write(addr, data);
-        }
+        self.bus.write(addr, data);
     }
 }
+

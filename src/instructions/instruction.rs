@@ -54,7 +54,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // The instruction expects the next byte to be used as a value, so we'll prep
         // the read address to point to the next byte
         AddressingMode::IMM => {
-            cpu.addr_abs = cpu.program_counter + 1;
+            cpu.addr_abs = cpu.program_counter; //  + 1; MAYBE A BUG
+            cpu.program_counter += 1;
             0
         }
 
@@ -96,8 +97,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         AddressingMode::REL => {
             cpu.addr_rel = cpu.read_bus(cpu.program_counter) as u16;
             cpu.program_counter += 1;
-            if cpu.addr_rel & 0x80 == 0x80 {
-                cpu.addr_rel |= 0xFF;
+            if cpu.addr_rel & 0x80 > 0 {
+                cpu.addr_rel |= 0xFF00;
             }
             0
         }

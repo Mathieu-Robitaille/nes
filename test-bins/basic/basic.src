@@ -1,0 +1,24 @@
+LOC   CODE         LABEL     INSTRUCTION
+
+8000                         * = $8000
+8000  A2 0A                  LDX #$0A
+8002  8E 00 00               STX $0000
+8005  A2 03                  LDX #$03
+8007  8E 01 00               STX $0001
+800A  AC 00 00               LDY $0000
+800D  A9 00                  LDA #$00
+800F  18                     CLC
+8010               LOOP      
+8010  6D 01 00               ADC $0001
+8013  88                     DEY
+8014  D0 FA                  BNE $8010
+8016  8D 02 00               STA $0002
+8019  EA                     NOP
+801A  EA                     NOP
+801B  EA                     NOP
+
+done (code: 8000..801B).
+
+This multiplies 10 by 3
+The result should be 1E stored at 0x0002
+
