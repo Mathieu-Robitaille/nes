@@ -1,9 +1,6 @@
 use crate::cartridge::Cartridge;
 use crate::ppu::PPU;
-use std::{
-    rc::Rc,
-    cell::RefCell,
-};
+use std::{cell::RefCell, rc::Rc};
 
 pub trait BusReader {
     fn bus_read(&mut self, addr: u16, read_only: bool) -> u8;
@@ -17,7 +14,7 @@ pub struct Bus {
     ram: [u8; 0x07FF],
 
     cart: Rc<RefCell<Cartridge>>,
-    
+
     ppu: PPU,
     clock_cycle: u32,
 }
@@ -26,11 +23,11 @@ impl Bus {
     pub fn new(cart: Rc<RefCell<Cartridge>>) -> Self {
         let ram: [u8; 0x07FF] = [0; 0x07FF];
         let ppu: PPU = PPU::new(cart.clone());
-        Bus { 
-            ram, 
+        Bus {
+            ram,
             cart: cart.clone(),
             ppu,
-            clock_cycle: 0 
+            clock_cycle: 0,
         }
     }
 

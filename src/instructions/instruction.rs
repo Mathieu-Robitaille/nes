@@ -107,6 +107,7 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // A full 16-bit address is loaded and used
         AddressingMode::ABS => {
             cpu.addr_abs = cpu.read_bus_two_bytes(cpu.pc);
+            // println!("ABS read {:04X?}", cpu.addr_abs);
             cpu.pc += 2;
             0
         }
@@ -197,4 +198,3 @@ fn check_page_change(previous: &u16, current: &u16) -> u8 {
     }
     0
 }
-

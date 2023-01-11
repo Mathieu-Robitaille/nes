@@ -1,9 +1,9 @@
-// This is in its own dir so that vscode can ignore the 
+// This is in its own dir so that vscode can ignore the
 // massive table since they only ignore dirs for some reason
 
-use lazy_static::lazy_static;
-use crate::instructions::instruction::{Instruction, AddressingMode};
+use crate::instructions::instruction::{AddressingMode, Instruction};
 use crate::instructions::instruction_functions::*;
+use lazy_static::lazy_static;
 
 lazy_static! {
     // BY THE POWER OF AUTS

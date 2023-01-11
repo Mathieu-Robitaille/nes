@@ -15,7 +15,7 @@ pub fn ADC(cpu: &mut Cpu6502) -> u8 {
     );
     set_carry(cpu, cpu.temp);
     set_nz_flags(cpu, cpu.temp as u8);
-    
+
     cpu.acc = cpu.temp as u8;
     1
 }
@@ -128,7 +128,6 @@ pub fn BNE(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::Z) == 0 {
         cpu.cycles += 1;
 
-        
         // println!("PROGRAM_COUNTER: {:04X?} | addr_rel: {:04X?}", cpu.program_counter, cpu.addr_rel);
         // println!("PROGRAM_COUNTER: {:b} | addr_rel: {:b}", cpu.program_counter, cpu.addr_rel);
         // Gross hack
@@ -151,6 +150,7 @@ pub fn BPL(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::N) == 0 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        println!("{:04X?}  {:04X?}", cpu.addr_abs, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -476,7 +476,7 @@ pub fn ROL(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = ((cpu.fetched << 1) | cpu.get_flag(Flags::C)) as u16;
     let x: u8 = (cpu.temp & 0x00FF) as u8;
-    
+
     set_carry(cpu, cpu.temp);
     set_nz_flags(cpu, cpu.temp as u8);
     if cpu.addressing_mode == AddressingMode::IMP {

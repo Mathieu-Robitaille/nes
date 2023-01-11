@@ -1,31 +1,37 @@
 use crate::olc_pixel_game_engine as olc;
 
+use crate::bus::Bus;
+use crate::cartridge::{load_cart, Rom};
+use crate::cpu::Cpu6502;
+use crate::debug::draw_debug;
+use crate::disassembler::disassemble_rom;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-use crate::cartridge::{Rom, load_cart};
-use crate::disassembler::disassemble_rom;
-use crate::debug::draw_debug;
-use crate::cpu::Cpu6502;
-use crate::bus::Bus;
 
 pub struct Nes {
     pub cpu: Cpu6502,
-    pub decoded_rom: HashMap<u16, String>
+    pub decoded_rom: HashMap<u16, String>,
 }
 
 impl Nes {
     pub fn new() -> Self {
-        if let Ok(cart) = load_cart(Rom::CPUTest) {
-            let cart_rc = Rc::new(RefCell::new(cart));
-            let bus = Bus::new(cart_rc.clone());
-            let decoded_rom = disassemble_rom(0x0000, 0xFFFF, cart_rc.clone());
-            return Self {
-                cpu: Cpu6502::new(bus),
-                decoded_rom
+        match load_cart(Rom::CPUTest) {
+            Ok(cart) => {
+                let cart_rc = Rc::new(RefCell::new(cart));
+                let bus = Bus::new(cart_rc.clone());
+                let decoded_rom = disassemble_rom(0x0000, 0xFFFF, cart_rc.clone());
+                let mut cpu = Cpu6502::new(bus);
+                cpu.reset(Some(0xC000));
+                return Self {
+                    cpu,
+                    decoded_rom,
+                };
             }
-        } else {
-            panic!("Heck!");
+            Err(x) => {
+                println!("{:?}", x);
+                panic!()
+            }
         }
     }
 }
@@ -33,7 +39,6 @@ impl Nes {
 impl olc::Application for Nes {
     fn on_user_create(&mut self) -> Result<(), olc::Error> {
         // Mirrors `olcPixelGameEngine::onUserCreate`. Your code goes here.
-        self.cpu.reset();
 
         // self.cpu.program_counter = 0x0400;
         Ok(())
@@ -45,16 +50,16 @@ impl olc::Application for Nes {
         // Clears screen and sets black colour.
         olc::clear(olc::BLACK);
         // Prints the string starting at the position (40, 40) and using white colour.
-        
+
         if olc::get_key(olc::Key::SPACE).pressed {
             loop {
                 self.cpu.clock();
                 if self.cpu.complete() {
-                    break; 
+                    break;
                 }
             }
         }
-        
+
         draw_debug(self)?;
         Ok(())
     }

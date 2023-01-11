@@ -1,17 +1,15 @@
 use crate::bus::{Bus, BusReader, BusWriter};
 use crate::instructions::{
+    instruction::{process_instruction_addressing_mode, AddressingMode, Instruction},
     instruction_table::instruction_table::INSTRUCTIONS_ARR,
-    instruction::{
-        process_instruction_addressing_mode, AddressingMode, Instruction,
-    }
 };
 
-use std::io;
 use bitflags::bitflags;
+use std::io;
 use std::{
     cell::RefCell,
-    rc::Rc,
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign},
+    rc::Rc,
 };
 
 bitflags! {
@@ -124,7 +122,6 @@ impl Cpu6502 {
     }
 
     pub(crate) fn clock(&mut self) {
-
         if self.cycles == 0 {
             self.opcode = self.read_bus(self.pc);
             // make suuuuuuure its set
@@ -138,18 +135,21 @@ impl Cpu6502 {
                 let additional_cycle2: u8 = (ins.function)(self);
                 self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
             }
-            
+
             // make suuuuuuure its set
             self.set_flag(Flags::U, true);
         }
-        
+
         self.clock_count += 1;
         self.cycles -= 1;
     }
 
-    pub(crate) fn reset(&mut self) {
+    pub(crate) fn reset(&mut self, testcart: Option<u16>) {
         self.addr_abs = 0xFFFC;
-        self.pc = self.read_bus_two_bytes(self.addr_abs);
+        match testcart {
+            Some(x) => self.pc = x,
+            None => self.pc = self.read_bus_two_bytes(self.addr_abs),
+        };
         self.acc = 0;
         self.x_reg = 0;
         self.y_reg = 0;
@@ -206,7 +206,9 @@ impl Cpu6502 {
     }
 
     pub fn complete(&self) -> bool {
-        if self.cycles == 0 { return true; }
+        if self.cycles == 0 {
+            return true;
+        }
         false
     }
 
@@ -242,4 +244,3 @@ impl BusWriter for Cpu6502 {
         self.bus.cpu_write(addr, data);
     }
 }
-

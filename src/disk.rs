@@ -1,13 +1,6 @@
 use serde::{
-    ser::{
-        Serialize,
-        Serializer,
-        SerializeStruct,
-    },
-    de::{
-        Deserialize,
-        Deserializer,
-    },
+    de::{Deserialize, Deserializer},
+    ser::{Serialize, SerializeStruct, Serializer},
 };
 
 use crate::instructions::instruction::Instruction;
@@ -15,7 +8,7 @@ use crate::instructions::instruction::Instruction;
 impl Serialize for Instruction {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer 
+        S: Serializer,
     {
         let mut state = serializer.serialize_struct("Instruction", 4)?;
         state.serialize_field("name", &self.name)?;
