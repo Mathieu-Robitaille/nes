@@ -10,8 +10,8 @@ use std::io;
 use bitflags::bitflags;
 use std::{
     cell::RefCell,
-    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign},
     rc::Rc,
+    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign},
 };
 
 bitflags! {
@@ -71,7 +71,7 @@ pub struct Cpu6502 {
     pub(crate) x_reg: u8,
     pub(crate) y_reg: u8,
     pub(crate) stack_pointer: u8,
-    pub(crate) program_counter: u16,
+    pub(crate) pc: u16,
     pub(crate) status: u8,
 
     pub(crate) fetched: u8,
@@ -124,46 +124,21 @@ impl Cpu6502 {
     }
 
     pub(crate) fn clock(&mut self) {
-        let manual_debug = false;
 
         if self.cycles == 0 {
-            self.opcode = self.read_bus(self.program_counter);
-
-
-
-            if manual_debug { println!("Set Opcode to {:02X?}", self.opcode); }
+            self.opcode = self.read_bus(self.pc);
             // make suuuuuuure its set
             self.set_flag(Flags::U, true);
 
-            self.program_counter += 1;
+            self.pc += 1;
 
             if (0x00..0xFF).contains(&self.opcode) {
-                if manual_debug { 
-                    println!("Valid opcode: {:02X?}", self.opcode);
-                    println!("Valid opcode: {:?}", self.opcode as usize);
-                }
                 let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
-                if manual_debug { 
-                    println!("Got instruction {:?}", ins.name);
-                }
                 let additional_cycle1: u8 = process_instruction_addressing_mode(ins, self);
                 let additional_cycle2: u8 = (ins.function)(self);
                 self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
             }
-
-
             
-
-            if manual_debug {
-                println!("Cycle: {:?} | Cy: {:?} | A: {:02X?} | X: {:02X?} | Y: {:02X?} | Op: {:02X?} | Aa: {:04X?} | Ar: {:04X?} | Pc: {:04X?} | S: {:b}", self.clock_count, self.cycles, self.acc, self.x_reg, self.y_reg, self.opcode, self.addr_abs, self.addr_rel, self.program_counter, self.status);
-                println!("\tMemory: ");
-                for i in 0x0000..=0x0002 {
-                    println!("\t{:04X?}: {:02X?}", i as u16, self.read_bus(i as u16));
-                }
-                let mut buf = String::new();
-                io::stdin().read_line(&mut buf);
-
-            }
             // make suuuuuuure its set
             self.set_flag(Flags::U, true);
         }
@@ -174,7 +149,7 @@ impl Cpu6502 {
 
     pub(crate) fn reset(&mut self) {
         self.addr_abs = 0xFFFC;
-        self.program_counter = self.read_bus_two_bytes(self.addr_abs);
+        self.pc = self.read_bus_two_bytes(self.addr_abs);
         self.acc = 0;
         self.x_reg = 0;
         self.y_reg = 0;
@@ -192,7 +167,7 @@ impl Cpu6502 {
         if self.get_flag(Flags::I) != 0 {
             return;
         }
-        self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.program_counter);
+        self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.pc);
         self.stack_pointer -= 2;
 
         self.set_flag(Flags::B, false);
@@ -203,12 +178,12 @@ impl Cpu6502 {
         self.stack_pointer -= 1;
 
         self.addr_abs = 0xFFFE;
-        self.program_counter = self.read_bus_two_bytes(self.addr_abs);
+        self.pc = self.read_bus_two_bytes(self.addr_abs);
         self.cycles = 7;
     }
 
     fn nmi(&mut self) {
-        self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.program_counter);
+        self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.pc);
         self.stack_pointer -= 2;
 
         self.set_flag(Flags::B, false);
@@ -219,7 +194,7 @@ impl Cpu6502 {
         self.stack_pointer -= 1;
 
         self.addr_abs = 0xFFFA;
-        self.program_counter = self.read_bus_two_bytes(self.addr_abs);
+        self.pc = self.read_bus_two_bytes(self.addr_abs);
         self.cycles = 8;
     }
 
@@ -241,7 +216,7 @@ impl Cpu6502 {
             x_reg: 0x00,
             y_reg: 0x00,
             stack_pointer: 0x00,
-            program_counter: 0x0000,
+            pc: 0x0000,
             status: 0x00,
             fetched: 0x00,
             temp: 0x0000,
@@ -258,13 +233,13 @@ impl Cpu6502 {
 
 impl BusReader for Cpu6502 {
     fn bus_read(&mut self, addr: u16, _read_only: bool) -> u8 {
-        self.bus.read(addr, false)
+        self.bus.cpu_read(addr, false)
     }
 }
 
 impl BusWriter for Cpu6502 {
     fn bus_write(&mut self, addr: u16, data: u8) {
-        self.bus.write(addr, data);
+        self.bus.cpu_write(addr, data);
     }
 }
 

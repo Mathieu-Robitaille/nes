@@ -1,4 +1,4 @@
-use crate::cpu::{Cpu6502, Flags};
+use crate::cpu::Cpu6502;
 use crate::instructions::instruction_functions::XXX;
 
 #[derive(Clone, Copy)]
@@ -54,8 +54,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // The instruction expects the next byte to be used as a value, so we'll prep
         // the read address to point to the next byte
         AddressingMode::IMM => {
-            cpu.addr_abs = cpu.program_counter; //  + 1; MAYBE A BUG
-            cpu.program_counter += 1;
+            cpu.addr_abs = cpu.pc; //  + 1; MAYBE A BUG
+            cpu.pc += 1;
             0
         }
 
@@ -64,8 +64,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // a location in first 0xFF bytes of address range. Clearly this only requires
         // one byte instead of the usual two.
         AddressingMode::ZP0 => {
-            cpu.addr_abs = cpu.read_bus(cpu.program_counter) as u16;
-            cpu.program_counter += 1;
+            cpu.addr_abs = cpu.read_bus(cpu.pc) as u16;
+            cpu.pc += 1;
             cpu.addr_abs &= 0x00FF;
             0
         }
@@ -75,8 +75,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // is added to the supplied single byte address. This is useful for iterating through
         // ranges within the first page.
         AddressingMode::ZPX => {
-            cpu.addr_abs = (cpu.read_bus(cpu.program_counter) + cpu.x_reg) as u16;
-            cpu.program_counter += 1;
+            cpu.addr_abs = (cpu.read_bus(cpu.pc) + cpu.x_reg) as u16;
+            cpu.pc += 1;
             cpu.addr_abs &= 0x00FF;
             0
         }
@@ -84,8 +84,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // Address Mode: Zero Page with Y Offset
         // Same as above but uses Y Register for offset
         AddressingMode::ZPY => {
-            cpu.addr_abs = (cpu.read_bus(cpu.program_counter) + cpu.y_reg) as u16;
-            cpu.program_counter += 1;
+            cpu.addr_abs = (cpu.read_bus(cpu.pc) + cpu.y_reg) as u16;
+            cpu.pc += 1;
             cpu.addr_abs &= 0x00FF;
             0
         }
@@ -95,8 +95,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // must reside within -128 to +127 of the branch instruction, i.e.
         // you cant directly branch to any address in the addressable range.
         AddressingMode::REL => {
-            cpu.addr_rel = cpu.read_bus(cpu.program_counter) as u16;
-            cpu.program_counter += 1;
+            cpu.addr_rel = cpu.read_bus(cpu.pc) as u16;
+            cpu.pc += 1;
             if cpu.addr_rel & 0x80 > 0 {
                 cpu.addr_rel |= 0xFF00;
             }
@@ -106,8 +106,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // Address Mode: Absolute
         // A full 16-bit address is loaded and used
         AddressingMode::ABS => {
-            cpu.addr_abs = cpu.read_bus_two_bytes(cpu.program_counter);
-            cpu.program_counter += 2;
+            cpu.addr_abs = cpu.read_bus_two_bytes(cpu.pc);
+            cpu.pc += 2;
             0
         }
 
@@ -116,8 +116,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // is added to the supplied two byte address. If the resulting address changes
         // the page, an additional clock cycle is required
         AddressingMode::ABX => {
-            let addr: u16 = cpu.read_bus_two_bytes(cpu.program_counter);
-            cpu.program_counter += 2;
+            let addr: u16 = cpu.read_bus_two_bytes(cpu.pc);
+            cpu.pc += 2;
 
             cpu.addr_abs = addr;
             cpu.addr_abs += cpu.x_reg as u16;
@@ -129,8 +129,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // is added to the supplied two byte address. If the resulting address changes
         // the page, an additional clock cycle is required
         AddressingMode::ABY => {
-            let addr: u16 = cpu.read_bus_two_bytes(cpu.program_counter);
-            cpu.program_counter += 2;
+            let addr: u16 = cpu.read_bus_two_bytes(cpu.pc);
+            cpu.pc += 2;
 
             cpu.addr_abs = addr;
             cpu.addr_abs += cpu.y_reg as u16;
@@ -146,8 +146,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // designed, instead it wraps back around in the same page, yielding an
         // invalid actual address
         AddressingMode::IND => {
-            let addr: u16 = cpu.read_bus_two_bytes(cpu.program_counter);
-            cpu.program_counter += 2;
+            let addr: u16 = cpu.read_bus_two_bytes(cpu.pc);
+            cpu.pc += 2;
             let ptr: u16 = addr;
 
             if addr & 0x00FF == 0x00FF {
@@ -163,8 +163,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // a location in page 0x00. The actual 16-bit address is read
         // from this location
         AddressingMode::IZX => {
-            let t: u16 = cpu.read_bus(cpu.program_counter) as u16;
-            cpu.program_counter += 1;
+            let t: u16 = cpu.read_bus(cpu.pc) as u16;
+            cpu.pc += 1;
             cpu.addr_abs = cpu.read_bus_two_bytes(t + cpu.x_reg as u16);
             0
         }
@@ -175,8 +175,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // Y Register is added to it to offset it. If the offset causes a
         // change in page then an additional clock cycle is required.
         AddressingMode::IZY => {
-            let t: u16 = cpu.read_bus(cpu.program_counter) as u16;
-            cpu.program_counter += 1;
+            let t: u16 = cpu.read_bus(cpu.pc) as u16;
+            cpu.pc += 1;
             cpu.temp = cpu.read_bus_two_bytes(t);
             cpu.addr_abs += cpu.y_reg as u16;
 

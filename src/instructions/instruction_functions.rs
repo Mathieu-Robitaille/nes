@@ -54,12 +54,12 @@ pub fn ASL(cpu: &mut Cpu6502) -> u8 {
 pub fn BCC(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::C) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
+        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
 
-        if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
+        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.program_counter = cpu.addr_abs;
+        cpu.pc = cpu.addr_abs;
     }
     0
 }
@@ -70,12 +70,12 @@ pub fn BCC(cpu: &mut Cpu6502) -> u8 {
 pub fn BCS(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::C) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
+        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
 
-        if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
+        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.program_counter = cpu.addr_abs;
+        cpu.pc = cpu.addr_abs;
     }
     0
 }
@@ -86,12 +86,12 @@ pub fn BCS(cpu: &mut Cpu6502) -> u8 {
 pub fn BEQ(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::Z) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
+        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
 
-        if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
+        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.program_counter = cpu.addr_abs;
+        cpu.pc = cpu.addr_abs;
     }
     0
 }
@@ -112,11 +112,11 @@ pub fn BIT(cpu: &mut Cpu6502) -> u8 {
 pub fn BMI(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::N) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
-        if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
+        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.program_counter = cpu.addr_abs;
+        cpu.pc = cpu.addr_abs;
     }
     0
 }
@@ -135,11 +135,11 @@ pub fn BNE(cpu: &mut Cpu6502) -> u8 {
         // let (a, _) = cpu.program_counter.overflowing_add(cpu.addr_rel);
 
         // println!("x: {:04X?}", a);
-        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
-        if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
+        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.program_counter = cpu.addr_abs;
+        cpu.pc = cpu.addr_abs;
     }
     0
 }
@@ -150,11 +150,11 @@ pub fn BNE(cpu: &mut Cpu6502) -> u8 {
 pub fn BPL(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::N) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
-        if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
+        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.program_counter = cpu.addr_abs;
+        cpu.pc = cpu.addr_abs;
     }
     0
 }
@@ -163,9 +163,9 @@ pub fn BPL(cpu: &mut Cpu6502) -> u8 {
 // Function:    Program Sourced Interrupt
 #[allow(non_snake_case)]
 pub fn BRK(cpu: &mut Cpu6502) -> u8 {
-    cpu.program_counter += 1;
+    cpu.pc += 1;
     cpu.set_flag(Flags::I, true);
-    cpu.write_bus_two_bytes(0x0100 + cpu.stack_pointer as u16, cpu.program_counter);
+    cpu.write_bus_two_bytes(0x0100 + cpu.stack_pointer as u16, cpu.pc);
     cpu.stack_pointer -= 2;
 
     cpu.set_flag(Flags::B, true);
@@ -173,7 +173,7 @@ pub fn BRK(cpu: &mut Cpu6502) -> u8 {
     cpu.stack_pointer -= 1;
     cpu.set_flag(Flags::B, false);
 
-    cpu.program_counter = cpu.read_bus_two_bytes(0xFFFE);
+    cpu.pc = cpu.read_bus_two_bytes(0xFFFE);
     0
 }
 
@@ -183,11 +183,11 @@ pub fn BRK(cpu: &mut Cpu6502) -> u8 {
 pub fn BVC(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::V) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
-        if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
+        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.program_counter = cpu.addr_abs;
+        cpu.pc = cpu.addr_abs;
     }
     0
 }
@@ -198,11 +198,11 @@ pub fn BVC(cpu: &mut Cpu6502) -> u8 {
 pub fn BVS(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::V) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.program_counter, cpu.addr_rel);
-        if ((cpu.addr_abs & 0xFF00) != (cpu.program_counter & 0xFF00)) {
+        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.program_counter = cpu.addr_abs;
+        cpu.pc = cpu.addr_abs;
     }
     0
 }
@@ -352,15 +352,15 @@ pub fn INY(cpu: &mut Cpu6502) -> u8 {
 
 #[allow(non_snake_case)]
 pub fn JMP(cpu: &mut Cpu6502) -> u8 {
-    cpu.program_counter = cpu.addr_abs;
+    cpu.pc = cpu.addr_abs;
     0
 }
 
 #[allow(non_snake_case)]
 pub fn JSR(cpu: &mut Cpu6502) -> u8 {
-    cpu.program_counter -= 1;
-    cpu.write_bus_two_bytes(0x0100 + cpu.stack_pointer as u16, cpu.program_counter);
-    cpu.program_counter = cpu.addr_abs;
+    cpu.pc -= 1;
+    cpu.write_bus_two_bytes(0x0100 + cpu.stack_pointer as u16, cpu.pc);
+    cpu.pc = cpu.addr_abs;
     0
 }
 
@@ -512,7 +512,7 @@ pub fn RTI(cpu: &mut Cpu6502) -> u8 {
     cpu.status &= !Flags::B;
     cpu.status &= !Flags::U;
     cpu.stack_pointer += 1;
-    cpu.program_counter = cpu.read_bus_two_bytes(0x0100 + (cpu.stack_pointer as u16));
+    cpu.pc = cpu.read_bus_two_bytes(0x0100 + (cpu.stack_pointer as u16));
     cpu.stack_pointer += 1;
     0
 }
@@ -520,9 +520,9 @@ pub fn RTI(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn RTS(cpu: &mut Cpu6502) -> u8 {
     cpu.stack_pointer += 1;
-    cpu.program_counter = cpu.read_bus_two_bytes(0x0100 + (cpu.stack_pointer as u16));
+    cpu.pc = cpu.read_bus_two_bytes(0x0100 + (cpu.stack_pointer as u16));
     cpu.stack_pointer += 1;
-    cpu.program_counter += 1;
+    cpu.pc += 1;
     0
 }
 
