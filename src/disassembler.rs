@@ -103,7 +103,7 @@ pub fn disassemble_rom(
                 hi = cart.cpu_read(addr as u16).unwrap();
                 addr += 1;
                 instruction_string.push_str(
-                    format!("#${:04?}         {{{}}}", ((hi as u16) << 8 | lo as u16), addr_mode).as_str(),
+                    format!("#${:04X?}         {{{}}}", ((hi as u16) << 8 | lo as u16), addr_mode).as_str(),
                 );
             }
             REL => {

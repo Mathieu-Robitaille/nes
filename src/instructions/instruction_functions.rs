@@ -150,7 +150,6 @@ pub fn BPL(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(Flags::N) == 0 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
-        println!("{:04X?}  {:04X?}", cpu.addr_abs, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }

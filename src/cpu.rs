@@ -80,6 +80,7 @@ pub struct Cpu6502 {
     pub(crate) cycles: u8,
     pub(crate) opcode: u8,
     pub(crate) clock_count: u32,
+    pub(crate) instruction_count: u32,
 
     pub(crate) bus: Bus,
 }
@@ -121,27 +122,31 @@ impl Cpu6502 {
         }
     }
 
-    pub(crate) fn clock(&mut self) {
+    pub(crate) fn clock(&mut self) -> Option<String> {
+        let mut ret: Option<String> = None;
         if self.cycles == 0 {
+            let mut ins_str: String = format!("0x{:04X?} [", self.pc);
             self.opcode = self.read_bus(self.pc);
             // make suuuuuuure its set
             self.set_flag(Flags::U, true);
-
+            
             self.pc += 1;
-
-            if (0x00..0xFF).contains(&self.opcode) {
-                let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
-                let additional_cycle1: u8 = process_instruction_addressing_mode(ins, self);
-                let additional_cycle2: u8 = (ins.function)(self);
-                self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
-            }
-
+            
+            let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
+            ins_str.push_str(format!("{}] {{{}}} op: {:02X?}", ins.name, ins.addr_mode, self.opcode).as_str());
+            
+            let additional_cycle1: u8 = process_instruction_addressing_mode(ins, self);
+            let additional_cycle2: u8 = (ins.function)(self);
+            self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
+            
             // make suuuuuuure its set
             self.set_flag(Flags::U, true);
+            self.instruction_count += 1;
+            ret = Some(ins_str);
         }
-
         self.clock_count += 1;
         self.cycles -= 1;
+        ret
     }
 
     pub(crate) fn reset(&mut self, testcart: Option<u16>) {
@@ -159,6 +164,7 @@ impl Cpu6502 {
         self.addr_rel = 0x0000;
         self.addr_abs = 0x0000;
         self.fetched = 0x0000;
+        self.instruction_count = 1;
 
         self.cycles = 8;
     }
@@ -228,6 +234,7 @@ impl Cpu6502 {
             opcode: 0x00,
             cycles: 1,
             clock_count: 0,
+            instruction_count: 1,
             bus: b,
         }
     }

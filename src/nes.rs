@@ -53,7 +53,9 @@ impl olc::Application for Nes {
 
         if olc::get_key(olc::Key::SPACE).pressed {
             loop {
-                self.cpu.clock();
+                if let Some(x) = self.cpu.clock() {
+                    println!("{}", x);
+                }
                 if self.cpu.complete() {
                     break;
                 }

@@ -71,8 +71,10 @@ impl Cartridge {
                 prg_memory.resize((headder.prg_rom_chunks as usize) * 16384, 0);
                 f.read_exact(&mut prg_memory)?; // This dies
 
+                println!("{:?}", prg_memory.len());
                 chr_memory.resize((headder.chr_rom_chunks as usize) * 8192, 0);
                 f.read_exact(&mut chr_memory)?;
+                println!("{:?}", chr_memory.len());
             }
             // 2 => { 0 },
             _ => {}

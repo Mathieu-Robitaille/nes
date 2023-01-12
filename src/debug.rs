@@ -17,7 +17,7 @@ pub fn draw_debug(nes: &mut Nes) -> Result<(), olc::Error> {
         nes.cpu.pc & 0xFF0F, /* add filter logic here to page less */
         nes,
     )?;
-    draw_code(CPU_X_POS, 94, 20, nes);
+    draw_code(CPU_X_POS, 104, 20, nes);
     Ok(())
 }
 
@@ -74,13 +74,21 @@ fn draw_cpu(x: i32, y: i32, nes: &mut Nes) -> Result<(), olc::Error> {
         format!("Fetched     : {:02X?}", nes.cpu.fetched).as_str(),
         olc::WHITE,
     )?;
+    olc::draw_string(
+        x,
+        y + 70,
+        format!("Ins count   : {}", nes.cpu.instruction_count).as_str(),
+        olc::WHITE,
+    )?;
     Ok(())
 }
 
 fn draw_ram(x: i32, y: i32, col: i32, addr: u16, nes: &mut Nes) -> Result<(), olc::Error> {
     if (addr..=(addr + (col * 16) as u16)).contains(&nes.cpu.pc) {
+        let base_offset = (6 * 9);
         let current_x =
-            x + (6 * 9) + ((nes.cpu.pc % 16) * 16) as i32 + ((nes.cpu.pc % 16) * 8) as i32;
+            x + base_offset;// + ((nes.cpu.pc % 16) * 16) as i32 + ((nes.cpu.pc % 16) * 8) as i32; // wait what
+            // un stipod this pls
         let current_y = y + (((nes.cpu.pc - addr) / 16) * 10) as i32 - 1;
         olc::draw_rect(current_x, current_y, 17, 9, olc::GREEN);
     }
