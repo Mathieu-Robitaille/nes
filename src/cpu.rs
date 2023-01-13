@@ -13,7 +13,7 @@ use std::{
 };
 
 bitflags! {
-    pub struct Flags: u8 {
+    pub struct CPUFlags: u8 {
         const C = 1 << 0; // 0x01 // Carry Bit
         const Z = 1 << 1; // 0x02 // Zero
         const I = 1 << 2; // 0x04 // Disable Interupts
@@ -25,41 +25,41 @@ bitflags! {
     }
 }
 
-impl BitAnd<Flags> for u8 {
+impl BitAnd<CPUFlags> for u8 {
     type Output = u8;
-    fn bitand(self, rhs: Flags) -> Self::Output {
+    fn bitand(self, rhs: CPUFlags) -> Self::Output {
         self & rhs.bits
     }
 }
 
-impl BitAndAssign<Flags> for u8 {
-    fn bitand_assign(&mut self, rhs: Flags) {
+impl BitAndAssign<CPUFlags> for u8 {
+    fn bitand_assign(&mut self, rhs: CPUFlags) {
         *self = *self & rhs.bits
     }
 }
 
-impl BitOr<Flags> for u8 {
+impl BitOr<CPUFlags> for u8 {
     type Output = u8;
-    fn bitor(self, rhs: Flags) -> Self::Output {
+    fn bitor(self, rhs: CPUFlags) -> Self::Output {
         self | rhs.bits
     }
 }
 
-impl BitOrAssign<Flags> for u8 {
-    fn bitor_assign(&mut self, rhs: Flags) {
+impl BitOrAssign<CPUFlags> for u8 {
+    fn bitor_assign(&mut self, rhs: CPUFlags) {
         *self = *self | rhs.bits
     }
 }
 
-impl BitXor<Flags> for u8 {
+impl BitXor<CPUFlags> for u8 {
     type Output = u8;
-    fn bitxor(self, rhs: Flags) -> Self::Output {
+    fn bitxor(self, rhs: CPUFlags) -> Self::Output {
         self ^ rhs.bits
     }
 }
 
-impl BitXorAssign<Flags> for u8 {
-    fn bitxor_assign(&mut self, rhs: Flags) {
+impl BitXorAssign<CPUFlags> for u8 {
+    fn bitxor_assign(&mut self, rhs: CPUFlags) {
         *self = *self ^ rhs.bits
     }
 }
@@ -93,7 +93,7 @@ impl Cpu6502 {
         self.bus_write(addr, data)
     }
 
-    pub(crate) fn get_flag(&self, flag: Flags) -> u8 {
+    pub(crate) fn get_flag(&self, flag: CPUFlags) -> u8 {
         if self.status & flag > 0 {
             return 1;
         } else {
@@ -114,7 +114,7 @@ impl Cpu6502 {
         self.write_bus(addr - 1, lo);
     }
 
-    pub(crate) fn set_flag(&mut self, flag: Flags, v: bool) {
+    pub(crate) fn set_flag(&mut self, flag: CPUFlags, v: bool) {
         if v {
             self.status = self.status | flag;
         } else {
@@ -128,7 +128,7 @@ impl Cpu6502 {
             let mut ins_str: String = format!("0x{:04X?} [", self.pc);
             self.opcode = self.read_bus(self.pc);
             // make suuuuuuure its set
-            self.set_flag(Flags::U, true);
+            self.set_flag(CPUFlags::U, true);
             
             self.pc += 1;
             
@@ -140,7 +140,7 @@ impl Cpu6502 {
             self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
             
             // make suuuuuuure its set
-            self.set_flag(Flags::U, true);
+            self.set_flag(CPUFlags::U, true);
             self.instruction_count += 1;
             ret = Some(ins_str);
         }
@@ -159,7 +159,7 @@ impl Cpu6502 {
         self.x_reg = 0;
         self.y_reg = 0;
         self.stack_pointer = 0xFD;
-        self.status = 0x00 | Flags::U;
+        self.status = 0x00 | CPUFlags::U;
 
         self.addr_rel = 0x0000;
         self.addr_abs = 0x0000;
@@ -170,15 +170,15 @@ impl Cpu6502 {
     }
 
     fn irq(&mut self) {
-        if self.get_flag(Flags::I) != 0 {
+        if self.get_flag(CPUFlags::I) != 0 {
             return;
         }
         self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.pc);
         self.stack_pointer -= 2;
 
-        self.set_flag(Flags::B, false);
-        self.set_flag(Flags::U, true);
-        self.set_flag(Flags::I, true);
+        self.set_flag(CPUFlags::B, false);
+        self.set_flag(CPUFlags::U, true);
+        self.set_flag(CPUFlags::I, true);
 
         self.write_bus(0x0100 + (self.stack_pointer as u16), self.status);
         self.stack_pointer -= 1;
@@ -192,9 +192,9 @@ impl Cpu6502 {
         self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.pc);
         self.stack_pointer -= 2;
 
-        self.set_flag(Flags::B, false);
-        self.set_flag(Flags::U, true);
-        self.set_flag(Flags::I, true);
+        self.set_flag(CPUFlags::B, false);
+        self.set_flag(CPUFlags::U, true);
+        self.set_flag(CPUFlags::I, true);
 
         self.write_bus(0x0100 + (self.stack_pointer as u16), self.status);
         self.stack_pointer -= 1;

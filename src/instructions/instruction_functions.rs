@@ -1,4 +1,4 @@
-use crate::cpu::{Cpu6502, Flags};
+use crate::cpu::{Cpu6502, CPUFlags};
 use crate::instructions::instruction::AddressingMode;
 
 #[allow(non_snake_case)]
@@ -8,9 +8,9 @@ pub fn ADC(cpu: &mut Cpu6502) -> u8 {
 
     // Add is performed in 16-bit domain for emulation to capture any
     // carry bit, which will exist in bit 8 of the 16-bit word
-    cpu.temp = cpu.acc as u16 + cpu.fetched as u16 + cpu.get_flag(Flags::C) as u16;
+    cpu.temp = cpu.acc as u16 + cpu.fetched as u16 + cpu.get_flag(CPUFlags::C) as u16;
     cpu.set_flag(
-        Flags::V,
+        CPUFlags::V,
         (!(cpu.acc ^ cpu.fetched) as u16 & (cpu.acc as u16 ^ cpu.temp)) & 0x0080 > 0,
     );
     set_carry(cpu, cpu.temp);
@@ -52,7 +52,7 @@ pub fn ASL(cpu: &mut Cpu6502) -> u8 {
 // Function:    if(C == 0) pc = address
 #[allow(non_snake_case)]
 pub fn BCC(cpu: &mut Cpu6502) -> u8 {
-    if cpu.get_flag(Flags::C) == 0 {
+    if cpu.get_flag(CPUFlags::C) == 0 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
 
@@ -68,7 +68,7 @@ pub fn BCC(cpu: &mut Cpu6502) -> u8 {
 // Function:    if(C == 1) pc = address
 #[allow(non_snake_case)]
 pub fn BCS(cpu: &mut Cpu6502) -> u8 {
-    if cpu.get_flag(Flags::C) == 1 {
+    if cpu.get_flag(CPUFlags::C) == 1 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
 
@@ -84,7 +84,7 @@ pub fn BCS(cpu: &mut Cpu6502) -> u8 {
 // Function:    if(Z == 1) pc = address
 #[allow(non_snake_case)]
 pub fn BEQ(cpu: &mut Cpu6502) -> u8 {
-    if cpu.get_flag(Flags::Z) == 1 {
+    if cpu.get_flag(CPUFlags::Z) == 1 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
 
@@ -100,9 +100,9 @@ pub fn BEQ(cpu: &mut Cpu6502) -> u8 {
 pub fn BIT(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.acc & cpu.fetched) as u16;
-    cpu.set_flag(Flags::Z, cpu.temp as u8 == 0x00);
-    cpu.set_flag(Flags::N, (cpu.fetched & Flags::N) > 0);
-    cpu.set_flag(Flags::V, (cpu.fetched & Flags::V) > 0);
+    cpu.set_flag(CPUFlags::Z, cpu.temp as u8 == 0x00);
+    cpu.set_flag(CPUFlags::N, (cpu.fetched & CPUFlags::N) > 0);
+    cpu.set_flag(CPUFlags::V, (cpu.fetched & CPUFlags::V) > 0);
     0
 }
 
@@ -110,7 +110,7 @@ pub fn BIT(cpu: &mut Cpu6502) -> u8 {
 // Function:    if(N == 1) pc = address
 #[allow(non_snake_case)]
 pub fn BMI(cpu: &mut Cpu6502) -> u8 {
-    if cpu.get_flag(Flags::N) == 1 {
+    if cpu.get_flag(CPUFlags::N) == 1 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
@@ -125,7 +125,7 @@ pub fn BMI(cpu: &mut Cpu6502) -> u8 {
 // Function:    if(Z == 0) pc = address
 #[allow(non_snake_case)]
 pub fn BNE(cpu: &mut Cpu6502) -> u8 {
-    if cpu.get_flag(Flags::Z) == 0 {
+    if cpu.get_flag(CPUFlags::Z) == 0 {
         cpu.cycles += 1;
 
         // println!("PROGRAM_COUNTER: {:04X?} | addr_rel: {:04X?}", cpu.program_counter, cpu.addr_rel);
@@ -147,7 +147,7 @@ pub fn BNE(cpu: &mut Cpu6502) -> u8 {
 // Function:    if(N == 0) pc = address
 #[allow(non_snake_case)]
 pub fn BPL(cpu: &mut Cpu6502) -> u8 {
-    if cpu.get_flag(Flags::N) == 0 {
+    if cpu.get_flag(CPUFlags::N) == 0 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
@@ -163,14 +163,14 @@ pub fn BPL(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn BRK(cpu: &mut Cpu6502) -> u8 {
     cpu.pc += 1;
-    cpu.set_flag(Flags::I, true);
+    cpu.set_flag(CPUFlags::I, true);
     cpu.write_bus_two_bytes(0x0100 + cpu.stack_pointer as u16, cpu.pc);
     cpu.stack_pointer -= 2;
 
-    cpu.set_flag(Flags::B, true);
+    cpu.set_flag(CPUFlags::B, true);
     cpu.write_bus(0x0100 + cpu.stack_pointer as u16, cpu.status);
     cpu.stack_pointer -= 1;
-    cpu.set_flag(Flags::B, false);
+    cpu.set_flag(CPUFlags::B, false);
 
     cpu.pc = cpu.read_bus_two_bytes(0xFFFE);
     0
@@ -180,7 +180,7 @@ pub fn BRK(cpu: &mut Cpu6502) -> u8 {
 // Function:    if(V == 0) pc = address
 #[allow(non_snake_case)]
 pub fn BVC(cpu: &mut Cpu6502) -> u8 {
-    if cpu.get_flag(Flags::V) == 0 {
+    if cpu.get_flag(CPUFlags::V) == 0 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
@@ -195,7 +195,7 @@ pub fn BVC(cpu: &mut Cpu6502) -> u8 {
 // Function:    if(V == 1) pc = address
 #[allow(non_snake_case)]
 pub fn BVS(cpu: &mut Cpu6502) -> u8 {
-    if cpu.get_flag(Flags::V) == 1 {
+    if cpu.get_flag(CPUFlags::V) == 1 {
         cpu.cycles += 1;
         cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
@@ -210,7 +210,7 @@ pub fn BVS(cpu: &mut Cpu6502) -> u8 {
 // Function:    C = 0
 #[allow(non_snake_case)]
 pub fn CLC(cpu: &mut Cpu6502) -> u8 {
-    cpu.set_flag(Flags::C, false);
+    cpu.set_flag(CPUFlags::C, false);
     0
 }
 
@@ -218,7 +218,7 @@ pub fn CLC(cpu: &mut Cpu6502) -> u8 {
 // Function:    D = 0
 #[allow(non_snake_case)]
 pub fn CLD(cpu: &mut Cpu6502) -> u8 {
-    cpu.set_flag(Flags::D, false);
+    cpu.set_flag(CPUFlags::D, false);
     0
 }
 
@@ -226,7 +226,7 @@ pub fn CLD(cpu: &mut Cpu6502) -> u8 {
 // Function:    I = 0
 #[allow(non_snake_case)]
 pub fn CLI(cpu: &mut Cpu6502) -> u8 {
-    cpu.set_flag(Flags::I, false);
+    cpu.set_flag(CPUFlags::I, false);
     0
 }
 
@@ -234,7 +234,7 @@ pub fn CLI(cpu: &mut Cpu6502) -> u8 {
 // Function:    V = 0
 #[allow(non_snake_case)]
 pub fn CLV(cpu: &mut Cpu6502) -> u8 {
-    cpu.set_flag(Flags::V, false);
+    cpu.set_flag(CPUFlags::V, false);
     0
 }
 
@@ -245,7 +245,7 @@ pub fn CLV(cpu: &mut Cpu6502) -> u8 {
 pub fn CMP(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.acc - cpu.fetched) as u16;
-    cpu.set_flag(Flags::C, cpu.acc >= cpu.fetched);
+    cpu.set_flag(CPUFlags::C, cpu.acc >= cpu.fetched);
     set_nz_flags(cpu, cpu.temp as u8);
     0
 }
@@ -257,7 +257,7 @@ pub fn CMP(cpu: &mut Cpu6502) -> u8 {
 pub fn CPX(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.x_reg - cpu.fetched) as u16;
-    cpu.set_flag(Flags::C, cpu.x_reg >= cpu.fetched);
+    cpu.set_flag(CPUFlags::C, cpu.x_reg >= cpu.fetched);
     set_nz_flags(cpu, cpu.temp as u8);
     0
 }
@@ -269,7 +269,7 @@ pub fn CPX(cpu: &mut Cpu6502) -> u8 {
 pub fn CPY(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
     cpu.temp = (cpu.y_reg - cpu.fetched) as u16;
-    cpu.set_flag(Flags::C, cpu.y_reg >= cpu.fetched);
+    cpu.set_flag(CPUFlags::C, cpu.y_reg >= cpu.fetched);
     set_nz_flags(cpu, cpu.temp as u8);
     0
 }
@@ -390,7 +390,7 @@ pub fn LDY(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn LSR(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.set_flag(Flags::C, cpu.fetched & 1 > 0);
+    cpu.set_flag(CPUFlags::C, cpu.fetched & 1 > 0);
     cpu.temp = (cpu.fetched >> 1) as u16;
 
     set_nz_flags(cpu, cpu.temp as u8);
@@ -441,10 +441,10 @@ pub fn PHA(cpu: &mut Cpu6502) -> u8 {
 pub fn PHP(cpu: &mut Cpu6502) -> u8 {
     cpu.write_bus(
         0x0100 + cpu.stack_pointer as u16,
-        cpu.status | Flags::B | Flags::U,
+        cpu.status | CPUFlags::B | CPUFlags::U,
     );
-    cpu.set_flag(Flags::B, false);
-    cpu.set_flag(Flags::U, false);
+    cpu.set_flag(CPUFlags::B, false);
+    cpu.set_flag(CPUFlags::U, false);
     cpu.stack_pointer -= 1;
     0
 }
@@ -466,14 +466,14 @@ pub fn PLA(cpu: &mut Cpu6502) -> u8 {
 pub fn PLP(cpu: &mut Cpu6502) -> u8 {
     cpu.stack_pointer += 1;
     cpu.status = cpu.read_bus(0x0100 + cpu.stack_pointer as u16);
-    cpu.set_flag(Flags::U, true); // not needed??
+    cpu.set_flag(CPUFlags::U, true); // not needed??
     0
 }
 
 #[allow(non_snake_case)]
 pub fn ROL(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.temp = ((cpu.fetched << 1) | cpu.get_flag(Flags::C)) as u16;
+    cpu.temp = ((cpu.fetched << 1) | cpu.get_flag(CPUFlags::C)) as u16;
     let x: u8 = (cpu.temp & 0x00FF) as u8;
 
     set_carry(cpu, cpu.temp);
@@ -489,11 +489,11 @@ pub fn ROL(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn ROR(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.temp = ((cpu.fetched >> 1) | cpu.get_flag(Flags::C) << 7) as u16;
+    cpu.temp = ((cpu.fetched >> 1) | cpu.get_flag(CPUFlags::C) << 7) as u16;
     let x: u8 = (cpu.temp & 0x00FF) as u8;
 
     // needs a special case
-    cpu.set_flag(Flags::C, cpu.fetched & 0x01 > 0);
+    cpu.set_flag(CPUFlags::C, cpu.fetched & 0x01 > 0);
 
     set_nz_flags(cpu, cpu.temp as u8);
     if cpu.addressing_mode == AddressingMode::IMP {
@@ -508,8 +508,8 @@ pub fn ROR(cpu: &mut Cpu6502) -> u8 {
 pub fn RTI(cpu: &mut Cpu6502) -> u8 {
     cpu.stack_pointer += 1;
     cpu.status = cpu.read_bus(0x0100 + (cpu.stack_pointer as u16));
-    cpu.status &= !Flags::B;
-    cpu.status &= !Flags::U;
+    cpu.status &= !CPUFlags::B;
+    cpu.status &= !CPUFlags::U;
     cpu.stack_pointer += 1;
     cpu.pc = cpu.read_bus_two_bytes(0x0100 + (cpu.stack_pointer as u16));
     cpu.stack_pointer += 1;
@@ -532,13 +532,13 @@ pub fn RTS(cpu: &mut Cpu6502) -> u8 {
 pub fn SBC(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
     let v: u16 = (cpu.fetched as u16) ^ 0x00FF;
-    cpu.temp = (cpu.acc as u16) + v + (cpu.get_flag(Flags::C) as u16);
+    cpu.temp = (cpu.acc as u16) + v + (cpu.get_flag(CPUFlags::C) as u16);
 
     set_carry(cpu, cpu.temp);
     set_nz_flags(cpu, cpu.temp as u8);
 
     cpu.set_flag(
-        Flags::V,
+        CPUFlags::V,
         ((cpu.temp ^ (cpu.acc as u16)) & (cpu.temp ^ v) & 0x0080) > 0,
     );
     cpu.acc = (cpu.temp & 0x00FF) as u8;
@@ -549,7 +549,7 @@ pub fn SBC(cpu: &mut Cpu6502) -> u8 {
 // Function:    C = 1
 #[allow(non_snake_case)]
 pub fn SEC(cpu: &mut Cpu6502) -> u8 {
-    cpu.set_flag(Flags::C, true);
+    cpu.set_flag(CPUFlags::C, true);
     0
 }
 
@@ -557,7 +557,7 @@ pub fn SEC(cpu: &mut Cpu6502) -> u8 {
 // Function:    D = 1
 #[allow(non_snake_case)]
 pub fn SED(cpu: &mut Cpu6502) -> u8 {
-    cpu.set_flag(Flags::D, true);
+    cpu.set_flag(CPUFlags::D, true);
     0
 }
 
@@ -565,7 +565,7 @@ pub fn SED(cpu: &mut Cpu6502) -> u8 {
 // Function:    I = 1
 #[allow(non_snake_case)]
 pub fn SEI(cpu: &mut Cpu6502) -> u8 {
-    cpu.set_flag(Flags::I, true);
+    cpu.set_flag(CPUFlags::I, true);
     0
 }
 
@@ -657,15 +657,15 @@ pub fn XXX(cpu: &mut Cpu6502) -> u8 {
 }
 
 fn set_carry(cpu: &mut Cpu6502, reg: u16) {
-    cpu.set_flag(Flags::C, reg & 0xFF00 > 0);
+    cpu.set_flag(CPUFlags::C, reg & 0xFF00 > 0);
 }
 
 fn set_z_if_reg_zero(cpu: &mut Cpu6502, reg: u8) {
-    cpu.set_flag(Flags::Z, reg == 0);
+    cpu.set_flag(CPUFlags::Z, reg == 0);
 }
 
 fn set_n_if_bit_set(cpu: &mut Cpu6502, reg: u8) {
-    cpu.set_flag(Flags::N, reg & 0x80 > 0);
+    cpu.set_flag(CPUFlags::N, reg & 0x80 > 0);
 }
 
 fn set_nz_flags(cpu: &mut Cpu6502, reg: u8) {

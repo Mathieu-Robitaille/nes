@@ -1,4 +1,4 @@
-use crate::cpu::Flags;
+use crate::cpu::CPUFlags;
 use crate::nes::Nes;
 use crate::olc_pixel_game_engine as olc;
 
@@ -30,14 +30,14 @@ fn draw_cpu(x: i32, y: i32, nes: &mut Nes) -> Result<(), olc::Error> {
         olc::RED
     }
     olc::draw_string(x, y, "Status:", olc::WHITE);
-    olc::draw_string(x + 64, y, "N", cpu_color(nes.cpu.status & Flags::N))?;
-    olc::draw_string(x + 80, y, "V", cpu_color(nes.cpu.status & Flags::V))?;
-    olc::draw_string(x + 96, y, "U", cpu_color(nes.cpu.status & Flags::U))?;
-    olc::draw_string(x + 112, y, "B", cpu_color(nes.cpu.status & Flags::B))?;
-    olc::draw_string(x + 128, y, "D", cpu_color(nes.cpu.status & Flags::D))?;
-    olc::draw_string(x + 144, y, "I", cpu_color(nes.cpu.status & Flags::I))?;
-    olc::draw_string(x + 160, y, "Z", cpu_color(nes.cpu.status & Flags::Z))?;
-    olc::draw_string(x + 178, y, "C", cpu_color(nes.cpu.status & Flags::C))?;
+    olc::draw_string(x + 64, y, "N", cpu_color(nes.cpu.status & CPUFlags::N))?;
+    olc::draw_string(x + 80, y, "V", cpu_color(nes.cpu.status & CPUFlags::V))?;
+    olc::draw_string(x + 96, y, "U", cpu_color(nes.cpu.status & CPUFlags::U))?;
+    olc::draw_string(x + 112, y, "B", cpu_color(nes.cpu.status & CPUFlags::B))?;
+    olc::draw_string(x + 128, y, "D", cpu_color(nes.cpu.status & CPUFlags::D))?;
+    olc::draw_string(x + 144, y, "I", cpu_color(nes.cpu.status & CPUFlags::I))?;
+    olc::draw_string(x + 160, y, "Z", cpu_color(nes.cpu.status & CPUFlags::Z))?;
+    olc::draw_string(x + 178, y, "C", cpu_color(nes.cpu.status & CPUFlags::C))?;
     olc::draw_string(
         x,
         y + 10,

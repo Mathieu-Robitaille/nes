@@ -1,0 +1,6 @@
+[submodule "crates/-f"]
+	path = crates/-f
+	url = git@github.com:MauriceKayser/rs-bitfield.git
+[submodule "crates/rs-bitfield"]
+	path = crates/rs-bitfield
+	url = git@github.com:MauriceKayser/rs-bitfield.git

@@ -11,12 +11,13 @@ pub trait BusWriter {
 }
 
 pub struct Bus {
+    clock_cycle: u32,
     ram: [u8; 0x07FF],
 
     cart: Rc<RefCell<Cartridge>>,
-
+    
+    // The ppu shouldnt be dropped unless the bus is dropped
     ppu: PPU,
-    clock_cycle: u32,
 }
 
 impl Bus {
@@ -39,27 +40,24 @@ impl Bus {
         todo!()
     }
 
-    pub(crate) fn cpu_read(&self, addr: u16, _read_only: bool) -> u8 {
+    pub(crate) fn cpu_read(&mut self, addr: u16, _read_only: bool) -> u8 {
         if let Ok(d) = self.cart.borrow().cpu_read(addr) {
             return d;
         } else if (0x0000..=0x1FFF).contains(&addr) {
-            self.ram[(addr & 0x07FF) as usize]
+            return self.ram[(addr & 0x07FF) as usize];
         } else if (0x2000..=0x3FFF).contains(&addr) {
-            self.ppu.cpu_read(addr & 0x0007)
-        } else {
-            self.ram[addr as usize]
-        }
+            return self.ppu.cpu_read(addr & 0x0007, _read_only);
+        } 
+        0x00
     }
 
     pub(crate) fn cpu_write(&mut self, addr: u16, data: u8) {
         if let Ok(_) = self.cart.borrow_mut().cpu_write(addr, data) {
             // nothing to do
-        } else if (0x0000..0x1FFF).contains(&addr) {
+        } else if (0x0000..=0x1FFF).contains(&addr) {
             self.ram[(addr & 0x07FF) as usize] = data;
         } else if (0x2000..=0x3FFF).contains(&addr) {
             self.ppu.cpu_write(addr & 0x0007, data)
-        } else {
-            self.ram[addr as usize] = data;
         }
     }
 }

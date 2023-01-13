@@ -2,7 +2,8 @@ use std::{cell::RefCell, fs::File, io, io::prelude::*, mem, rc::Rc, slice};
 
 use crate::mapper::{Mapper000, MapperTrait};
 
-enum MIRROR {
+#[derive(Debug, Clone, Copy)]
+pub enum MIRROR {
     HORIZONTAL,
     VERTICAL,
     OnescreenLo,
@@ -16,7 +17,7 @@ pub struct Cartridge {
     mapper_id: u8,
     prg_banks: u8,
     chr_banks: u8,
-    mirror: MIRROR,
+    pub mirror: MIRROR,
 }
 
 #[repr(C, packed)]
