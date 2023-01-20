@@ -20,20 +20,20 @@ impl Mapper000 {
 
 impl MapperTrait for Mapper000 {
     fn cpu_map_read(&self, addr: u16) -> Result<u32, ()> {
-        if (0x8000..0xFFFF).contains(&addr) {
+        if (0x8000..=0xFFFF).contains(&addr) {
             return Ok((addr & (if self.prg_banks > 1 { 0x7FFF } else { 0x3FFF })) as u32);
         }
         // println!("Errror {:?}", addr);
         Err(())
     }
     fn cpu_map_write(&self, addr: u16) -> Result<u32, ()> {
-        if (0x8000..0xFFFF).contains(&addr) {
+        if (0x8000..=0xFFFF).contains(&addr) {
             return Ok((addr & (if self.prg_banks > 1 { 0x7FFF } else { 0x3FFF })) as u32);
         }
         Err(())
     }
     fn ppu_map_read(&self, addr: u16) -> Result<u32, ()> {
-        if (0x0000..0x1FFF).contains(&addr) {
+        if (0x0000..=0x1FFF).contains(&addr) {
             return Ok(addr as u32);
         }
         Err(())

@@ -12,17 +12,16 @@ pub trait BusWriter {
 
 pub struct Bus {
     clock_cycle: u32,
-    ram: [u8; 0x07FF],
+    ram: [u8; 0x0800],
 
     cart: Rc<RefCell<Cartridge>>,
-    
-    // The ppu shouldnt be dropped unless the bus is dropped
-    ppu: PPU,
+
+    pub ppu: PPU,
 }
 
 impl Bus {
     pub fn new(cart: Rc<RefCell<Cartridge>>) -> Self {
-        let ram: [u8; 0x07FF] = [0; 0x07FF];
+        let ram: [u8; 0x0800] = [0; 0x0800];
         let ppu: PPU = PPU::new(cart.clone());
         Bus {
             ram,
@@ -47,16 +46,21 @@ impl Bus {
             return self.ram[(addr & 0x07FF) as usize];
         } else if (0x2000..=0x3FFF).contains(&addr) {
             return self.ppu.cpu_read(addr & 0x0007, _read_only);
-        } 
+        }
         0x00
     }
 
     pub(crate) fn cpu_write(&mut self, addr: u16, data: u8) {
-        if let Ok(_) = self.cart.borrow_mut().cpu_write(addr, data) {
-            // nothing to do
-        } else if (0x0000..=0x1FFF).contains(&addr) {
+        // if (0x0000..=0x1FFF).contains(&addr) {
+        //     println!("Writing to ppu {addr:04X?}");
+        // }
+
+        if let Ok(_) = self.cart.borrow_mut().cpu_write(addr, data) { return; } 
+        if (0x0000..=0x1FFF).contains(&addr) {
             self.ram[(addr & 0x07FF) as usize] = data;
         } else if (0x2000..=0x3FFF).contains(&addr) {
+            // This can borrow_mut the cart later.
+            // println!("Writing data to ppu: {addr:04X?} -> {data:02X?}");
             self.ppu.cpu_write(addr & 0x0007, data)
         }
     }

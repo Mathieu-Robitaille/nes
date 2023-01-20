@@ -1,9 +1,9 @@
 use crate::bus::{Bus, BusReader, BusWriter};
+use crate::disassembler::decode_bytes_used;
 use crate::instructions::{
     instruction::{process_instruction_addressing_mode, AddressingMode, Instruction},
     instruction_table::instruction_table::INSTRUCTIONS_ARR,
 };
-
 use bitflags::bitflags;
 use std::io;
 use std::{
@@ -116,32 +116,73 @@ impl Cpu6502 {
 
     pub(crate) fn set_flag(&mut self, flag: CPUFlags, v: bool) {
         if v {
-            self.status = self.status | flag;
+            self.status |= flag;
         } else {
-            self.status = self.status & !flag;
+            self.status &= !flag;
         }
     }
 
     pub(crate) fn clock(&mut self) -> Option<String> {
         let mut ret: Option<String> = None;
         if self.cycles == 0 {
-            let mut ins_str: String = format!("0x{:04X?} [", self.pc);
+            let mut ins_str: String = format!("{:04X?}  ", self.pc);
+            let mut following_bytes: Vec<u8> = vec![];
+
             self.opcode = self.read_bus(self.pc);
+            ins_str.push_str(format!("{:02X?} ", self.opcode).as_str());
+
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
-            
+
             self.pc += 1;
-            
+
             let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
-            ins_str.push_str(format!("{}] {{{}}} op: {:02X?}", ins.name, ins.addr_mode, self.opcode).as_str());
-            
+
+            for i in 0..decode_bytes_used(ins.addr_mode) {
+                following_bytes.push(self.read_bus(self.pc + (i as u16)));
+            }
+
+            for i in 0..2 {
+                if let Some(x) = following_bytes.get(i) {
+                    ins_str.push_str(format!("{:02X} ", x).as_str());
+                } else {
+                    ins_str.push_str("   ");
+                }
+            }
+
+            ins_str.push_str(format!(" {} ", ins.name).as_str());
+            for i in 0..2 {
+                if let Some(x) = following_bytes.get(1 - i) {
+                    ins_str.push_str(format!("{:02X}", x).as_str());
+                } else {
+                    ins_str.push_str("  ");
+                }
+            }
+
+            if self.opcode != 0x60 {
+                ins_str.push_str("                       ");
+            } else {
+                let target = self.read_bus_two_bytes(0x0100 + ((self.stack_pointer) as u16) -1);
+                ins_str.push_str(format!(" {:04X?} -> {:04X?}          ", self.pc, target).as_str());
+            }
+
+            ins_str.push_str(
+                format!(
+                    "A:{:02X} X:{:02X} Y:{:02X} SP:{:02X}",
+                    self.acc, self.x_reg, self.y_reg, self.stack_pointer
+                )
+                .as_str(),
+            );
+
+            self.addressing_mode = ins.addr_mode.clone();
             let additional_cycle1: u8 = process_instruction_addressing_mode(ins, self);
             let additional_cycle2: u8 = (ins.function)(self);
             self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
-            
+
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
             self.instruction_count += 1;
+
             ret = Some(ins_str);
         }
         self.clock_count += 1;
@@ -174,33 +215,38 @@ impl Cpu6502 {
             return;
         }
         self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.pc);
-        self.stack_pointer -= 2;
+        let (r, _) = self.stack_pointer.overflowing_sub(2);
+        self.stack_pointer = r;
 
         self.set_flag(CPUFlags::B, false);
         self.set_flag(CPUFlags::U, true);
         self.set_flag(CPUFlags::I, true);
 
         self.write_bus(0x0100 + (self.stack_pointer as u16), self.status);
-        self.stack_pointer -= 1;
+        let (r, _) = self.stack_pointer.overflowing_sub(1);
+        self.stack_pointer = r;
 
         self.addr_abs = 0xFFFE;
         self.pc = self.read_bus_two_bytes(self.addr_abs);
         self.cycles = 7;
     }
 
-    fn nmi(&mut self) {
+    pub fn nmi(&mut self) {
         self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.pc);
-        self.stack_pointer -= 2;
+        let (r, _) = self.stack_pointer.overflowing_sub(2);
+        self.stack_pointer = r;
 
         self.set_flag(CPUFlags::B, false);
         self.set_flag(CPUFlags::U, true);
         self.set_flag(CPUFlags::I, true);
 
         self.write_bus(0x0100 + (self.stack_pointer as u16), self.status);
-        self.stack_pointer -= 1;
+        let (r, _) = self.stack_pointer.overflowing_sub(1);
+        self.stack_pointer = r;
 
         self.addr_abs = 0xFFFA;
         self.pc = self.read_bus_two_bytes(self.addr_abs);
+        // println!("NMI -> {:04X?}", self.pc);
         self.cycles = 8;
     }
 

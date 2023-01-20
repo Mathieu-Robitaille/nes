@@ -27,7 +27,7 @@ impl fmt::Display for AddressingMode {
     }
 }
 
-fn decode_bytes_used(ins: AddressingMode) -> usize {
+pub fn decode_bytes_used(ins: AddressingMode) -> usize {
     match ins {
         IMP | XXX => 0,
         IMM | IZX | IZY | REL | ZP0 | ZPX | ZPY => 1,
@@ -93,7 +93,8 @@ pub fn disassemble_rom(
             }
             IMM | ZP0 | ZPX | ZPY | IZX | IZY => {
                 if let Ok(v) = cart.cpu_read(addr as u16) {
-                    instruction_string.push_str(format!("#${:04?}         {{{}}}", v, addr_mode).as_str());
+                    instruction_string
+                        .push_str(format!("#${:02X?}           {{{}}}", v, addr_mode).as_str());
                 }
                 addr += 1;
             }
@@ -103,16 +104,27 @@ pub fn disassemble_rom(
                 hi = cart.cpu_read(addr as u16).unwrap();
                 addr += 1;
                 instruction_string.push_str(
-                    format!("#${:04X?}         {{{}}}", ((hi as u16) << 8 | lo as u16), addr_mode).as_str(),
+                    format!(
+                        "#${:04X?}         {{{}}}",
+                        ((hi as u16) << 8 | lo as u16),
+                        addr_mode
+                    )
+                    .as_str(),
                 );
             }
             REL => {
-                value = cart.cpu_read(addr as u16).unwrap();
-                addr += 1;
-                let (rel, _) = (addr as u16).overflowing_sub((value as u16) & 0xFF00);
-                instruction_string.push_str(
-                    format!("#$  {:02X?} [${:04X?}] {{{}}}", value, rel, addr_mode).as_str(),
-                );
+                if let Ok(value) = cart.cpu_read(addr as u16) {
+                    addr += 1;
+                    let (rel, _) = (addr as u16).overflowing_sub((value as u16) & 0xFF00);
+                    instruction_string.push_str(
+                        format!("#$  {:02X?} [${:04X?}] {{{}}}", value, rel, addr_mode).as_str(),
+                    );
+                } else {
+                    eprintln!(
+                        "DISASSEMBLER - Could not read {:04X?} REL addressing mode.",
+                        addr as u16
+                    )
+                }
             }
             XXX => {
                 instruction_string.push_str("How?");

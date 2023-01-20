@@ -1,4 +1,4 @@
-use crate::cpu::{Cpu6502, CPUFlags};
+use crate::cpu::{CPUFlags, Cpu6502};
 use crate::instructions::instruction::AddressingMode;
 
 #[allow(non_snake_case)]
@@ -54,9 +54,9 @@ pub fn ASL(cpu: &mut Cpu6502) -> u8 {
 pub fn BCC(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::C) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
 
-        if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
+        if (cpu.addr_abs as u8 != cpu.pc as u8) {
             cpu.cycles += 1;
         }
         cpu.pc = cpu.addr_abs;
@@ -70,7 +70,7 @@ pub fn BCC(cpu: &mut Cpu6502) -> u8 {
 pub fn BCS(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::C) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
 
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
@@ -86,7 +86,7 @@ pub fn BCS(cpu: &mut Cpu6502) -> u8 {
 pub fn BEQ(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::Z) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
 
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
@@ -112,7 +112,7 @@ pub fn BIT(cpu: &mut Cpu6502) -> u8 {
 pub fn BMI(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::N) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -128,13 +128,7 @@ pub fn BNE(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::Z) == 0 {
         cpu.cycles += 1;
 
-        // println!("PROGRAM_COUNTER: {:04X?} | addr_rel: {:04X?}", cpu.program_counter, cpu.addr_rel);
-        // println!("PROGRAM_COUNTER: {:b} | addr_rel: {:b}", cpu.program_counter, cpu.addr_rel);
-        // Gross hack
-        // let (a, _) = cpu.program_counter.overflowing_add(cpu.addr_rel);
-
-        // println!("x: {:04X?}", a);
-        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -149,7 +143,7 @@ pub fn BNE(cpu: &mut Cpu6502) -> u8 {
 pub fn BPL(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::N) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -165,11 +159,11 @@ pub fn BRK(cpu: &mut Cpu6502) -> u8 {
     cpu.pc += 1;
     cpu.set_flag(CPUFlags::I, true);
     cpu.write_bus_two_bytes(0x0100 + cpu.stack_pointer as u16, cpu.pc);
-    cpu.stack_pointer -= 2;
+    cpu.stack_pointer = u8_register_sub(cpu.stack_pointer, 2);
 
     cpu.set_flag(CPUFlags::B, true);
     cpu.write_bus(0x0100 + cpu.stack_pointer as u16, cpu.status);
-    cpu.stack_pointer -= 1;
+    cpu.stack_pointer = u8_register_sub(cpu.stack_pointer, 1);
     cpu.set_flag(CPUFlags::B, false);
 
     cpu.pc = cpu.read_bus_two_bytes(0xFFFE);
@@ -182,7 +176,7 @@ pub fn BRK(cpu: &mut Cpu6502) -> u8 {
 pub fn BVC(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::V) == 0 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -197,7 +191,7 @@ pub fn BVC(cpu: &mut Cpu6502) -> u8 {
 pub fn BVS(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::V) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = branch_add(cpu.pc, cpu.addr_rel);
+        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
@@ -244,9 +238,10 @@ pub fn CLV(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn CMP(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.temp = (cpu.acc - cpu.fetched) as u16;
+    let x = u8_register_sub(cpu.acc, cpu.fetched);
+    cpu.temp = x as u16;
     cpu.set_flag(CPUFlags::C, cpu.acc >= cpu.fetched);
-    set_nz_flags(cpu, cpu.temp as u8);
+    set_nz_flags(cpu, x);
     0
 }
 
@@ -256,9 +251,10 @@ pub fn CMP(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn CPX(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.temp = (cpu.x_reg - cpu.fetched) as u16;
+    let x = u8_register_sub(cpu.x_reg, cpu.fetched);
+    cpu.temp = x as u16;
     cpu.set_flag(CPUFlags::C, cpu.x_reg >= cpu.fetched);
-    set_nz_flags(cpu, cpu.temp as u8);
+    set_nz_flags(cpu, x);
     0
 }
 
@@ -268,9 +264,10 @@ pub fn CPX(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn CPY(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.temp = (cpu.y_reg - cpu.fetched) as u16;
+    let x = u8_register_sub(cpu.y_reg, cpu.fetched);
+    cpu.temp = x as u16;
     cpu.set_flag(CPUFlags::C, cpu.y_reg >= cpu.fetched);
-    set_nz_flags(cpu, cpu.temp as u8);
+    set_nz_flags(cpu, x);
     0
 }
 
@@ -280,9 +277,10 @@ pub fn CPY(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn DEC(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.temp = (cpu.fetched - 1) as u16;
-    cpu.write_bus(cpu.addr_abs, cpu.temp as u8);
-    set_nz_flags(cpu, cpu.temp as u8);
+    let x = u8_register_sub(cpu.fetched, 1);
+    cpu.temp = x as u16;
+    cpu.write_bus(cpu.addr_abs, x);
+    set_nz_flags(cpu, x);
     0
 }
 
@@ -291,7 +289,7 @@ pub fn DEC(cpu: &mut Cpu6502) -> u8 {
 // Flags Out:   N, Z
 #[allow(non_snake_case)]
 pub fn DEX(cpu: &mut Cpu6502) -> u8 {
-    cpu.x_reg -= 1;
+    cpu.x_reg = u8_register_sub(cpu.x_reg, 1);
     set_nz_flags(cpu, cpu.x_reg);
     0
 }
@@ -301,7 +299,7 @@ pub fn DEX(cpu: &mut Cpu6502) -> u8 {
 // Flags Out:   N, Z
 #[allow(non_snake_case)]
 pub fn DEY(cpu: &mut Cpu6502) -> u8 {
-    cpu.y_reg -= 1;
+    cpu.y_reg = u8_register_sub(cpu.y_reg, 1);
     set_nz_flags(cpu, cpu.y_reg);
     0
 }
@@ -323,9 +321,10 @@ pub fn EOR(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn INC(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.temp = (cpu.fetched + 1) as u16;
-    cpu.write_bus(cpu.addr_abs, (cpu.temp & 0x00FF) as u8);
-    set_nz_flags(cpu, cpu.temp as u8);
+    let x = u8_register_add(cpu.fetched, 1);
+    cpu.temp = x as u16;
+    cpu.write_bus(cpu.addr_abs, x);
+    set_nz_flags(cpu, x);
     0
 }
 
@@ -334,8 +333,9 @@ pub fn INC(cpu: &mut Cpu6502) -> u8 {
 // Flags Out:   N, Z
 #[allow(non_snake_case)]
 pub fn INX(cpu: &mut Cpu6502) -> u8 {
-    cpu.x_reg += 1;
-    set_nz_flags(cpu, cpu.x_reg);
+    let x = u8_register_add(cpu.x_reg, 1);
+    cpu.x_reg = x;
+    set_nz_flags(cpu, x);
     0
 }
 
@@ -344,8 +344,9 @@ pub fn INX(cpu: &mut Cpu6502) -> u8 {
 // Flags Out:   N, Z
 #[allow(non_snake_case)]
 pub fn INY(cpu: &mut Cpu6502) -> u8 {
-    cpu.x_reg += 1;
-    set_nz_flags(cpu, cpu.y_reg);
+    let x = u8_register_add(cpu.y_reg, 1);
+    cpu.y_reg = x;
+    set_nz_flags(cpu, x);
     0
 }
 
@@ -359,6 +360,7 @@ pub fn JMP(cpu: &mut Cpu6502) -> u8 {
 pub fn JSR(cpu: &mut Cpu6502) -> u8 {
     cpu.pc -= 1;
     cpu.write_bus_two_bytes(0x0100 + cpu.stack_pointer as u16, cpu.pc);
+    cpu.stack_pointer = u8_register_sub(cpu.stack_pointer, 2);
     cpu.pc = cpu.addr_abs;
     0
 }
@@ -390,12 +392,13 @@ pub fn LDY(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn LSR(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.set_flag(CPUFlags::C, cpu.fetched & 1 > 0);
     cpu.temp = (cpu.fetched >> 1) as u16;
 
     set_nz_flags(cpu, cpu.temp as u8);
+    cpu.set_flag(CPUFlags::C, cpu.fetched & 0x01 > 0);
+
     if cpu.addressing_mode == AddressingMode::IMP {
-        cpu.acc = (cpu.temp & 0x00FF) as u8;
+        cpu.acc = cpu.temp as u8;
     } else {
         cpu.write_bus(cpu.addr_abs, cpu.temp as u8)
     }
@@ -420,7 +423,7 @@ pub fn NOP(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn ORA(cpu: &mut Cpu6502) -> u8 {
     cpu.fetch();
-    cpu.acc = cpu.acc | cpu.fetched;
+    cpu.acc |= cpu.fetched;
     set_nz_flags(cpu, cpu.acc);
     1
 }
@@ -430,7 +433,7 @@ pub fn ORA(cpu: &mut Cpu6502) -> u8 {
 #[allow(non_snake_case)]
 pub fn PHA(cpu: &mut Cpu6502) -> u8 {
     cpu.write_bus(0x0100 + cpu.stack_pointer as u16, cpu.acc);
-    cpu.stack_pointer -= 1;
+    cpu.stack_pointer = u8_register_sub(cpu.stack_pointer, 1);
     0
 }
 
@@ -445,7 +448,7 @@ pub fn PHP(cpu: &mut Cpu6502) -> u8 {
     );
     cpu.set_flag(CPUFlags::B, false);
     cpu.set_flag(CPUFlags::U, false);
-    cpu.stack_pointer -= 1;
+    cpu.stack_pointer = u8_register_sub(cpu.stack_pointer, 1);
     0
 }
 
@@ -454,7 +457,7 @@ pub fn PHP(cpu: &mut Cpu6502) -> u8 {
 // Flags Out:   N, Z
 #[allow(non_snake_case)]
 pub fn PLA(cpu: &mut Cpu6502) -> u8 {
-    cpu.stack_pointer += 1;
+    cpu.stack_pointer = u8_register_add(cpu.stack_pointer, 1);
     cpu.acc = cpu.read_bus(0x0100 + cpu.stack_pointer as u16);
     set_nz_flags(cpu, cpu.acc);
     0
@@ -464,7 +467,7 @@ pub fn PLA(cpu: &mut Cpu6502) -> u8 {
 // Function:    Status <- stack
 #[allow(non_snake_case)]
 pub fn PLP(cpu: &mut Cpu6502) -> u8 {
-    cpu.stack_pointer += 1;
+    cpu.stack_pointer = u8_register_add(cpu.stack_pointer, 1);
     cpu.status = cpu.read_bus(0x0100 + cpu.stack_pointer as u16);
     cpu.set_flag(CPUFlags::U, true); // not needed??
     0
@@ -506,21 +509,21 @@ pub fn ROR(cpu: &mut Cpu6502) -> u8 {
 
 #[allow(non_snake_case)]
 pub fn RTI(cpu: &mut Cpu6502) -> u8 {
-    cpu.stack_pointer += 1;
+    cpu.stack_pointer = u8_register_add(cpu.stack_pointer, 1);
     cpu.status = cpu.read_bus(0x0100 + (cpu.stack_pointer as u16));
     cpu.status &= !CPUFlags::B;
     cpu.status &= !CPUFlags::U;
-    cpu.stack_pointer += 1;
+    cpu.stack_pointer = u8_register_add(cpu.stack_pointer, 1);
     cpu.pc = cpu.read_bus_two_bytes(0x0100 + (cpu.stack_pointer as u16));
-    cpu.stack_pointer += 1;
+    cpu.stack_pointer = u8_register_add(cpu.stack_pointer, 1);
     0
 }
 
 #[allow(non_snake_case)]
 pub fn RTS(cpu: &mut Cpu6502) -> u8 {
-    cpu.stack_pointer += 1;
+    cpu.stack_pointer = u8_register_add(cpu.stack_pointer, 1);
     cpu.pc = cpu.read_bus_two_bytes(0x0100 + (cpu.stack_pointer as u16));
-    cpu.stack_pointer += 1;
+    cpu.stack_pointer = u8_register_add(cpu.stack_pointer, 1);
     cpu.pc += 1;
     0
 }
@@ -673,7 +676,19 @@ fn set_nz_flags(cpu: &mut Cpu6502, reg: u8) {
     set_n_if_bit_set(cpu, reg);
 }
 
-fn branch_add(a: u16, b: u16) -> u16 {
-    let (r, _) = a.overflowing_add(b);
+fn u8_register_add(reg: u8, amt: u8) -> u8 {
+    let (r, _) = reg.overflowing_add(amt);
+    r
+}
+fn u16_register_add(reg: u16, amt: u16) -> u16 {
+    let (r, _) = reg.overflowing_add(amt);
+    r
+}
+fn u8_register_sub(reg: u8, amt: u8) -> u8 {
+    let (r, _) = reg.overflowing_sub(amt);
+    r
+}
+fn u16_register_sub(reg: u16, amt: u16) -> u16 {
+    let (r, _) = reg.overflowing_sub(amt);
     r
 }

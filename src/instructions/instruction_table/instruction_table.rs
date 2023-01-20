@@ -9,7 +9,7 @@ lazy_static! {
     // BY THE POWER OF AUTS
     pub static ref INSTRUCTIONS_ARR: [Instruction; 0xFF +1] = {
         let mut m: [Instruction; 0xFF +1] = [Default::default(); 0xFF +1];
-        m[0x00] = Instruction { name: "BRK", clock_cycles: 7, addr_mode: AddressingMode::IMM, function: BRK};
+        m[0x00] = Instruction { name: "BRK", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: BRK};
         m[0x01] = Instruction { name: "ORA", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: ORA};
         m[0x02] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
         m[0x03] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
