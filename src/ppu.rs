@@ -3,6 +3,8 @@ use bitfield;
 use olc_pixel_game_engine as olc;
 use std::{cell::RefCell, rc::Rc};
 
+const OAM_SIZE: usize = 64;
+
 pub struct PPU {
     cart: Rc<RefCell<Cartridge>>,
     pub name_table: [[u8; 1024]; 2],
@@ -13,6 +15,10 @@ pub struct PPU {
     spr_screen: Rc<RefCell<olc::Sprite>>,
     spr_name_table: [Rc<RefCell<olc::Sprite>>; 2],
     spr_pattern_table: [Rc<RefCell<olc::Sprite>>; 2],
+
+    pub oam: [ObjectAttributeEntry; OAM_SIZE],
+    pub oam_addr: u8,
+
 
     pub frame_complete: bool,
     pub frame_complete_count: i32,
@@ -69,6 +75,9 @@ impl PPU {
                 Rc::new(RefCell::new(olc::Sprite::with_dims(128, 128))),
                 Rc::new(RefCell::new(olc::Sprite::with_dims(128, 128))),
             ],
+
+            oam: [ObjectAttributeEntry::default(); OAM_SIZE],
+            oam_addr: 0,
 
             frame_complete: false,
             frame_complete_count: 0,
@@ -322,12 +331,15 @@ impl PPU {
 
                 return ret;
             } // Status
+
             // 0x0003 => {
             //     return 0;
             // } // OAM Address
-            // 0x0004 => {
-            //     return 0;
-            // } // OAM Data
+
+            (0x0004, _) => {
+                return get_oam_field(&self.oam, self.oam_addr);
+            } // OAM Data
+
             // 0x0005 => {
             //     return 0;
             // } // Scroll
@@ -377,8 +389,10 @@ impl PPU {
             } // Control
             0x0001 => self.mask = data, // Mask
             0x0002 => {}                // Status
-            0x0003 => {}                // OAM Address
-            0x0004 => {}                // OAM Data
+            0x0003 => { self.oam_addr = data }                // OAM Address
+            0x0004 => { 
+                set_oam_field(&mut self.oam, self.oam_addr, data);
+            } // OAM Data
             0x0005 => {
                 if self.address_latch {
                     self.fine_x = data & 0x07;
@@ -963,6 +977,38 @@ impl PPU {
             a: 255,
         };
         pal_screen
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ObjectAttributeEntry {
+    y: u8,
+    id: u8,
+    attribute: u8,
+    x: u8,
+}
+
+impl ObjectAttributeEntry {
+}
+
+pub fn set_oam_field(oam: &mut [ObjectAttributeEntry; 64], addr: u8, data: u8) {
+    let (idx, remainder) = (addr / 64, addr % 4);
+    match remainder {
+        0 => { oam[idx as usize].y = data },
+        1 => { oam[idx as usize].id = data },
+        2 => { oam[idx as usize].attribute = data },
+        3 => { oam[idx as usize].x = data },
+        _ => { /* No */ }
+    }
+}
+pub fn get_oam_field(oam: &[ObjectAttributeEntry; 64], addr: u8) -> u8 {
+    let (idx, remainder) = (addr / 64, addr % 4);
+    match remainder {
+        0 => { oam[idx as usize].y }
+        1 => { oam[idx as usize].id }
+        2 => { oam[idx as usize].attribute }
+        3 => { oam[idx as usize].x }
+        _ => { /* No */ 0 }
     }
 }
 

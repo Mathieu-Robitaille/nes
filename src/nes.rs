@@ -3,6 +3,7 @@ use crate::olc_pixel_game_engine as olc;
 use crate::bus::Bus;
 use crate::cartridge::{load_cart, Rom};
 use crate::cpu::Cpu6502;
+use crate::ppu::{get_oam_field, set_oam_field};
 use crate::debug::draw_debug;
 use crate::disassembler::disassemble_rom;
 use std::cell::RefCell;
@@ -27,8 +28,8 @@ impl Nes {
                 let bus = Bus::new(cart_rc.clone());
                 let decoded_rom = disassemble_rom(0x0000, 0xFFFF, cart_rc.clone());
                 let mut cpu = Cpu6502::new(bus);
-                cpu.reset(Some(0xC000));
-                // cpu.reset(None);
+                // cpu.reset(Some(0xC000));
+                cpu.reset(None);
                 return Self {
                     cpu,
                     decoded_rom,
@@ -51,12 +52,33 @@ impl Nes {
         }
     }
     fn clock(&mut self) {
-        for _ in 0..3 {
-            self.cpu.bus.ppu.clock();
-        }
+        self.cpu.bus.ppu.clock();
 
-        if let Some(x) = self.cpu.clock() {
-            self.debug_print(x);
+        if self.system_clock % 3 == 0 {
+            if self.cpu.bus.dma_transfer {
+                if self.cpu.bus.dma_dummy {
+                    if self.system_clock % 2 == 1 {
+                        self.cpu.bus.dma_dummy = false;
+                    }
+                } else {
+                    if self.system_clock % 2 == 0 {
+                        let addr = ((self.cpu.bus.dma_page as u16) << 8) | self.cpu.bus.dma_addr as u16;
+                        self.cpu.bus.dma_data = self.cpu.bus.cpu_read(addr, true)
+                    } else {
+                        set_oam_field(&mut self.cpu.bus.ppu.oam, self.cpu.bus.dma_addr, self.cpu.bus.dma_data);
+                        let (r, _) = self.cpu.bus.dma_addr.overflowing_add(1);
+                        self.cpu.bus.dma_addr = r;
+                        if self.cpu.bus.dma_addr == 0x00 {
+                            self.cpu.bus.dma_transfer = false;
+                            self.cpu.bus.dma_dummy = true;
+                        }
+                    }
+                }
+            } else {
+                if let Some(x) = self.cpu.clock() {
+                    self.debug_print(x);
+                }
+            }
         }
 
         if self.cpu.bus.ppu.nmi {
@@ -80,7 +102,7 @@ impl olc::Application for Nes {
         // Mirrors `olcPixelGameEngine::onUserUpdate`. Your code goes here.
 
         // Clears screen and sets black colour.
-        olc::clear(olc::BLACK);
+
 
         if olc::get_key(olc::Key::Y).pressed {
             println!("palette: {:?}", self.cpu.bus.ppu.palette);
@@ -91,6 +113,7 @@ impl olc::Application for Nes {
         }
 
         if self.show_debug {
+            olc::clear(olc::BLACK);
             draw_debug(self)?;
         } else if self.cpu.instruction_count % 1000 == 0 {
             println!("{:?}", self.cpu.instruction_count);

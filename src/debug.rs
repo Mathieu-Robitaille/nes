@@ -39,10 +39,10 @@ const CODE_Y_SIZE: i32 = CODE_DISPLAY_LINES * TEXT_HEIGHT;
 pub fn draw_debug(nes: &mut Nes) -> Result<(), olc::Error> {
     draw_cpu(CPU_X_POS, CPU_Y_POS, nes)?;
     draw_ppu_status(PPU_STATUS_X_POS, PPU_STATUS_Y_POS, nes);
-    draw_swatches(PPU_STATUS_X_POS, PPU_STATUS_Y_POS - 8, nes);
+    draw_swatches(PPU_STATUS_X_POS, PPU_STATUS_Y_POS - 10, nes);
     
-    // draw_ppu_screen(PPU_SCREEN_X, PPU_SCREEN_Y, nes);
-    draw_ppu_bg_ids(PPU_SCREEN_X, PPU_SCREEN_Y, nes);
+    draw_ppu_screen(PPU_SCREEN_X, PPU_SCREEN_Y, nes);
+    // draw_ppu_bg_ids(PPU_SCREEN_X, PPU_SCREEN_Y, nes);
     draw_ppu_tables(PPU_PALLET_X_POS, PPU_PALLET_Y_POS, nes);
 
     // draw_ram(RAM_X_POS, RAM_Y_POS, 2, 0x0000, nes)?;

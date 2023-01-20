@@ -14,6 +14,13 @@ pub struct Bus {
     clock_cycle: u32,
     ram: [u8; 0x0800],
 
+    pub dma_page: u8,
+    pub dma_addr: u8,
+    pub dma_data: u8,
+
+    pub dma_transfer: bool,
+    pub dma_dummy: bool,
+
     cart: Rc<RefCell<Cartridge>>,
 
     pub ppu: PPU,
@@ -28,6 +35,11 @@ impl Bus {
             cart: cart.clone(),
             ppu,
             clock_cycle: 0,
+            dma_page: 0,
+            dma_addr: 0,
+            dma_data: 0,
+            dma_transfer: false,
+            dma_dummy: true
         }
     }
 
@@ -62,6 +74,12 @@ impl Bus {
             // This can borrow_mut the cart later.
             // println!("Writing data to ppu: {addr:04X?} -> {data:02X?}");
             self.ppu.cpu_write(addr & 0x0007, data)
+        } else if addr == 0x4014 {
+            self.dma_page = data;
+            self.dma_addr = 0x00;
+            self.dma_transfer = true;
+        } else if (0x4016..=0x4017).contains(&addr) {
+
         }
     }
 }
