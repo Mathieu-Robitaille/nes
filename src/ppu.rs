@@ -573,394 +573,394 @@ impl PPU {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         }; 0x40];
         pal_screen[0x00] = olc::Pixel {
             r: 84,
             g: 84,
             b: 84,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x01] = olc::Pixel {
             r: 0,
             g: 30,
             b: 116,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x02] = olc::Pixel {
             r: 8,
             g: 16,
             b: 144,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x03] = olc::Pixel {
             r: 48,
             g: 0,
             b: 136,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x04] = olc::Pixel {
             r: 68,
             g: 0,
             b: 100,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x05] = olc::Pixel {
             r: 92,
             g: 0,
             b: 48,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x06] = olc::Pixel {
             r: 84,
             g: 4,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x07] = olc::Pixel {
             r: 60,
             g: 24,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x08] = olc::Pixel {
             r: 32,
             g: 42,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x09] = olc::Pixel {
             r: 8,
             g: 58,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x0A] = olc::Pixel {
             r: 0,
             g: 64,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x0B] = olc::Pixel {
             r: 0,
             g: 60,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x0C] = olc::Pixel {
             r: 0,
             g: 50,
             b: 60,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x0D] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x0E] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x0F] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
 
         pal_screen[0x10] = olc::Pixel {
             r: 152,
             g: 150,
             b: 152,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x11] = olc::Pixel {
             r: 8,
             g: 76,
             b: 196,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x12] = olc::Pixel {
             r: 48,
             g: 50,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x13] = olc::Pixel {
             r: 92,
             g: 30,
             b: 228,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x14] = olc::Pixel {
             r: 136,
             g: 20,
             b: 176,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x15] = olc::Pixel {
             r: 160,
             g: 20,
             b: 100,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x16] = olc::Pixel {
             r: 152,
             g: 34,
             b: 32,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x17] = olc::Pixel {
             r: 120,
             g: 60,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x18] = olc::Pixel {
             r: 84,
             g: 90,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x19] = olc::Pixel {
             r: 40,
             g: 114,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x1A] = olc::Pixel {
             r: 8,
             g: 124,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x1B] = olc::Pixel {
             r: 0,
             g: 118,
             b: 40,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x1C] = olc::Pixel {
             r: 0,
             g: 102,
             b: 120,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x1D] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x1E] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x1F] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
 
         pal_screen[0x20] = olc::Pixel {
             r: 236,
             g: 238,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x21] = olc::Pixel {
             r: 76,
             g: 154,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x22] = olc::Pixel {
             r: 120,
             g: 124,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x23] = olc::Pixel {
             r: 176,
             g: 98,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x24] = olc::Pixel {
             r: 228,
             g: 84,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x25] = olc::Pixel {
             r: 236,
             g: 88,
             b: 180,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x26] = olc::Pixel {
             r: 236,
             g: 106,
             b: 100,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x27] = olc::Pixel {
             r: 212,
             g: 136,
             b: 32,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x28] = olc::Pixel {
             r: 160,
             g: 170,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x29] = olc::Pixel {
             r: 116,
             g: 196,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x2A] = olc::Pixel {
             r: 76,
             g: 208,
             b: 32,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x2B] = olc::Pixel {
             r: 56,
             g: 204,
             b: 108,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x2C] = olc::Pixel {
             r: 56,
             g: 180,
             b: 204,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x2D] = olc::Pixel {
             r: 60,
             g: 60,
             b: 60,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x2E] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x2F] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
 
         pal_screen[0x30] = olc::Pixel {
             r: 236,
             g: 238,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x31] = olc::Pixel {
             r: 168,
             g: 204,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x32] = olc::Pixel {
             r: 188,
             g: 188,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x33] = olc::Pixel {
             r: 212,
             g: 178,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x34] = olc::Pixel {
             r: 236,
             g: 174,
             b: 236,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x35] = olc::Pixel {
             r: 236,
             g: 174,
             b: 212,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x36] = olc::Pixel {
             r: 236,
             g: 180,
             b: 176,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x37] = olc::Pixel {
             r: 228,
             g: 196,
             b: 144,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x38] = olc::Pixel {
             r: 204,
             g: 210,
             b: 120,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x39] = olc::Pixel {
             r: 180,
             g: 222,
             b: 120,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x3A] = olc::Pixel {
             r: 168,
             g: 226,
             b: 144,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x3B] = olc::Pixel {
             r: 152,
             g: 226,
             b: 180,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x3C] = olc::Pixel {
             r: 160,
             g: 214,
             b: 228,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x3D] = olc::Pixel {
             r: 160,
             g: 162,
             b: 160,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x3E] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen[0x3F] = olc::Pixel {
             r: 0,
             g: 0,
             b: 0,
-            a: 0,
+            a: 255,
         };
         pal_screen
     }
