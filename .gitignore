@@ -16,3 +16,5 @@ Cargo.lock
 
 # Legal reasons!
 test-roms/carts
+
+.vscode/
