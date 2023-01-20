@@ -12,7 +12,7 @@ Resources:
 
 This is my rust implementation of [Javid9x](https://github.com/OneLoneCoder/olcNES)s' nes emulator.
 There are two goals with this: 
- - Port a `naive` cpp project to rust.
+ - Do A `naive` port of a cpp project to rust.
  - Optimize it once it works.
 
 This project really is a stepping stone to later create a snes from "scratch".
