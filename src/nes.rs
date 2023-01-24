@@ -1,11 +1,25 @@
-use crate::olc_pixel_game_engine as olc;
-
 use crate::bus::Bus;
 use crate::cartridge::{load_cart, Rom};
+use crate::consts::{
+    nes_consts::CART,
+    ppu_consts,
+    screen_consts::{HEIGHT, WIDTH},
+};
 use crate::cpu::Cpu6502;
-use crate::ppu::{get_oam_field, set_oam_field};
 use crate::debug::draw_debug;
 use crate::disassembler::disassemble_rom;
+use crate::ppu::{get_oam_field, set_oam_field, ObjectAttributeEntry};
+
+use glium::{
+    backend::Facade,
+    texture::{ClientFormat, RawImage2d},
+    uniforms::{MagnifySamplerFilter, MinifySamplerFilter, SamplerBehavior},
+    Display, Surface, Texture2d,
+};
+use imgui::{TextureId, Textures};
+use imgui_glium_renderer::Texture;
+use std::borrow::Cow;
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -13,30 +27,29 @@ use std::rc::Rc;
 pub struct Nes {
     pub cpu: Cpu6502,
     pub decoded_rom: HashMap<u16, String>,
-    emulation_run: bool,
-    run_for_frame: bool,
-    debug_text: bool,
-    show_debug: bool,
     system_clock: usize,
 }
 
 impl Nes {
     pub fn new() -> Self {
-        match load_cart(Rom::CPUTest) {
+        match load_cart(CART) {
             Ok(cart) => {
                 let cart_rc = Rc::new(RefCell::new(cart));
                 let bus = Bus::new(cart_rc.clone());
                 let decoded_rom = disassemble_rom(0x0000, 0xFFFF, cart_rc.clone());
                 let mut cpu = Cpu6502::new(bus);
-                // cpu.reset(Some(0xC000));
-                cpu.reset(None);
+                match CART {
+                    Rom::CPUTest => {
+                        cpu.reset(Some(0xC000));
+                    }
+                    _ => {
+                        cpu.reset(None);
+                    }
+                }
+
                 return Self {
                     cpu,
                     decoded_rom,
-                    emulation_run: false,
-                    debug_text: false,
-                    run_for_frame: false,
-                    show_debug: true,
                     system_clock: 0,
                 };
             }
@@ -46,12 +59,8 @@ impl Nes {
             }
         }
     }
-    fn debug_print(&self, text: String) {
-        if self.debug_text {
-            println!("{}", text);
-        }
-    }
-    fn clock(&mut self) {
+
+    pub fn clock(&mut self) {
         self.cpu.bus.ppu.clock();
 
         if self.system_clock % 3 == 0 {
@@ -62,10 +71,15 @@ impl Nes {
                     }
                 } else {
                     if self.system_clock % 2 == 0 {
-                        let addr = ((self.cpu.bus.dma_page as u16) << 8) | self.cpu.bus.dma_addr as u16;
+                        let addr =
+                            ((self.cpu.bus.dma_page as u16) << 8) | self.cpu.bus.dma_addr as u16;
                         self.cpu.bus.dma_data = self.cpu.bus.cpu_read(addr, true)
                     } else {
-                        set_oam_field(&mut self.cpu.bus.ppu.oam, self.cpu.bus.dma_addr, self.cpu.bus.dma_data);
+                        set_oam_field(
+                            &mut self.cpu.bus.ppu.oam,
+                            self.cpu.bus.dma_addr,
+                            self.cpu.bus.dma_data,
+                        );
                         let (r, _) = self.cpu.bus.dma_addr.overflowing_add(1);
                         self.cpu.bus.dma_addr = r;
                         if self.cpu.bus.dma_addr == 0x00 {
@@ -75,9 +89,7 @@ impl Nes {
                     }
                 }
             } else {
-                if let Some(x) = self.cpu.clock() {
-                    self.debug_print(x);
-                }
+                self.cpu.clock();
             }
         }
 
@@ -85,78 +97,50 @@ impl Nes {
             self.cpu.bus.ppu.nmi = false;
             self.cpu.nmi();
         }
-
         self.system_clock += 1;
     }
-}
 
-impl olc::Application for Nes {
-    fn on_user_create(&mut self) -> Result<(), olc::Error> {
-        // Mirrors `olcPixelGameEngine::onUserCreate`. Your code goes here.
-
-        // self.cpu.program_counter = 0x0400;
-        Ok(())
+    pub fn get_frame_status(&self) -> bool {
+        self.cpu.bus.ppu.frame_complete
+    }
+    pub fn reset_frame_status(&mut self) {
+        self.cpu.bus.ppu.frame_complete = false;
     }
 
-    fn on_user_update(&mut self, _elapsed_time: f32) -> Result<(), olc::Error> {
-        // Mirrors `olcPixelGameEngine::onUserUpdate`. Your code goes here.
+    pub fn reset(&mut self) {
+        self.cpu.reset(None);
+        self.cpu.bus.ppu.reset();
+    }
 
-        // Clears screen and sets black colour.
+    pub fn get_pattern_table(
+        &mut self,
+        idx: usize,
+        palette_id: u8,
+    ) -> ppu_consts::SprPatternTableUnitT {
+        self.cpu.bus.ppu.get_pattern_table(idx, palette_id)
+    }
 
-
-        if olc::get_key(olc::Key::Y).pressed {
-            println!("palette: {:?}", self.cpu.bus.ppu.palette);
-        }
-
-        if olc::get_key(olc::Key::E).pressed {
-            self.cpu.bus.ppu.debug = !self.cpu.bus.ppu.debug;
-        }
-
-        if self.show_debug {
-            olc::clear(olc::BLACK);
-            draw_debug(self)?;
-        } else if self.cpu.instruction_count % 1000 == 0 {
-            println!("{:?}", self.cpu.instruction_count);
-        }
-
-        // Prints the string starting at the position (40, 40) and using white colour.
-        if olc::get_key(olc::Key::Q).pressed {
-            self.emulation_run = !self.emulation_run;
-        }
-        if olc::get_key(olc::Key::W).pressed {
-            self.debug_text = !self.debug_text;
-        }
-        if olc::get_key(olc::Key::D).pressed {
-            self.show_debug = !self.show_debug;
-        }
-
-        // Run non stop
-        if self.emulation_run || (self.run_for_frame && !self.cpu.bus.ppu.frame_complete) {
+    pub fn clock_one_frame(&mut self) {
+        self.reset_frame_status();
+        while !self.cpu.bus.ppu.frame_complete {
             self.clock();
-            if self.cpu.bus.ppu.frame_complete {
-                self.run_for_frame = !self.run_for_frame
-            }
-        } else {
-            // Run for one frame
-            if olc::get_key(olc::Key::F).pressed {
-                self.run_for_frame = !self.run_for_frame
-            }
-            // Run one instruction
-            else if olc::get_key(olc::Key::SPACE).pressed {
-                loop {
-                    self.clock();
-                    if self.cpu.complete() {
-                        break;
-                    }
-                }
-            }
         }
-
-        Ok(())
     }
 
-    fn on_user_destroy(&mut self) -> Result<(), olc::Error> {
-        // Mirrors `olcPixelGameEngine::onUserDestroy`. Your code goes here.
-        Ok(())
+    pub fn clock_one_instruction(&mut self) {
+        self.reset_instruction_status();
+        while !self.get_instruction_status() {
+            self.clock();
+        }
+    }
+    pub fn get_instruction_status(&self) -> bool {
+        self.cpu.instruction_complete
+    }
+    pub fn reset_instruction_status(&mut self) {
+        self.cpu.instruction_complete = false;
+    }
+
+    pub fn get_oam(&self) -> [ObjectAttributeEntry; ppu_consts::OAM_SIZE] {
+        self.cpu.bus.ppu.oam.clone()
     }
 }

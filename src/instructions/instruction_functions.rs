@@ -86,12 +86,12 @@ pub fn BCS(cpu: &mut Cpu6502) -> u8 {
 pub fn BEQ(cpu: &mut Cpu6502) -> u8 {
     if cpu.get_flag(CPUFlags::Z) == 1 {
         cpu.cycles += 1;
-        cpu.addr_abs = u16_register_add(cpu.pc, cpu.addr_rel);
+        cpu.temp = u16_register_add(cpu.pc, cpu.addr_rel);
 
         if ((cpu.addr_abs & 0xFF00) != (cpu.pc & 0xFF00)) {
             cpu.cycles += 1;
         }
-        cpu.pc = cpu.addr_abs;
+        cpu.pc = cpu.temp;
     }
     0
 }

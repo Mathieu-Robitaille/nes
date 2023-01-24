@@ -1,24 +1,25 @@
 use crate::cartridge::{Cartridge, MIRROR};
+use crate::consts::{
+    emulation_consts::COLOR_CHANNELS,
+    ppu_consts::*,
+    screen_consts::{HEIGHT, WIDTH},
+};
 use bitfield;
-use olc_pixel_game_engine as olc;
 use std::{cell::RefCell, rc::Rc};
-
-const OAM_SIZE: usize = 64;
 
 pub struct PPU {
     cart: Rc<RefCell<Cartridge>>,
-    pub name_table: [[u8; 1024]; 2],
-    pub pattern_table: [[u8; 4096]; 2],
-    pub palette: [u8; 32],
+    pub name_table: NameTableT,
+    pub pattern_table: PatternTableT,
+    pub palette: PaletteT,
 
-    pal_screen: [olc::Pixel; 0x40],
-    spr_screen: Rc<RefCell<olc::Sprite>>,
-    spr_name_table: [Rc<RefCell<olc::Sprite>>; 2],
-    spr_pattern_table: [Rc<RefCell<olc::Sprite>>; 2],
+    possible_colors: [Pixel; 0x40],
+    spr_screen: SprScreenT,
+    spr_name_table: SprNameTableT,
+    spr_pattern_table: SprPatternTableT,
 
     pub oam: [ObjectAttributeEntry; OAM_SIZE],
     pub oam_addr: u8,
-
 
     pub frame_complete: bool,
     pub frame_complete_count: i32,
@@ -39,8 +40,8 @@ pub struct PPU {
     ppu_data_buffer: u8,
 
     // Pixel "dot" position information
-    scanline: i16,
-    cycle: i16,
+    scanline: usize,
+    cycle: usize,
 
     // Background rendering
     bg_next_tile_id: u8,
@@ -62,18 +63,18 @@ impl PPU {
             name_table: [[0; 1024], [0; 1024]],
             pattern_table: [[0; 4096], [0; 4096]],
             palette: [0; 32],
-            pal_screen: PPU::init_pal_screen(),
+            possible_colors: init_pal_screen(),
 
             // We need to be sure that the functions that call these
             //  return valid mem
-            spr_screen: Rc::new(RefCell::new(olc::Sprite::with_dims(256, 240))),
+            spr_screen: [0; WIDTH * HEIGHT * COLOR_CHANNELS],
             spr_name_table: [
-                Rc::new(RefCell::new(olc::Sprite::with_dims(256, 240))),
-                Rc::new(RefCell::new(olc::Sprite::with_dims(256, 240))),
+                [0; WIDTH * HEIGHT * 3],
+                [0; WIDTH * HEIGHT * COLOR_CHANNELS],
             ],
             spr_pattern_table: [
-                Rc::new(RefCell::new(olc::Sprite::with_dims(128, 128))),
-                Rc::new(RefCell::new(olc::Sprite::with_dims(128, 128))),
+                [0; SPR_PATTERN_TABLE_SIZE * SPR_PATTERN_TABLE_SIZE * COLOR_CHANNELS],
+                [0; SPR_PATTERN_TABLE_SIZE * SPR_PATTERN_TABLE_SIZE * COLOR_CHANNELS],
             ],
 
             oam: [ObjectAttributeEntry::default(); OAM_SIZE],
@@ -202,9 +203,9 @@ impl PPU {
 
     pub fn clock(&mut self) {
         match self.scanline {
-            -1..=239 => {
+            0..=240 => {
                 match (self.scanline, self.cycle) {
-                    (-1, 1) => self.status &= !STATUS_VERTICAL_BLANK_MASK,
+                    (262, 1) => self.status &= !STATUS_VERTICAL_BLANK_MASK,
                     (0, 0) => self.cycle = 1,
                     (_, 2..=257 | 321..=337) => {
                         self.update_shifters();
@@ -254,12 +255,12 @@ impl PPU {
                     (_, 338 | 340) => {
                         self.bg_next_tile_id = self.ppu_read(0x2000 | (self.vram_addr & 0x0FFF))
                     }
-                    (-1, 280 | 305) => self.transfer_address_y(),
+                    (262, 280 | 305) => self.transfer_address_y(),
                     _ => {}
                 }
             }
-            240 => { /* Verbose "we're not doing anything" */ }
-            241..=261 => {
+            241 => { /* Verbose "we're not doing anything" */ }
+            242..=262 => {
                 self.status |= STATUS_VERTICAL_BLANK_MASK;
                 if self.ctrl & CTRL_ENABLE_NMI > 0 {
                     self.nmi = true;
@@ -283,18 +284,22 @@ impl PPU {
             bg_palette = (bg_pal1 << 1) | bg_pal0;
         }
 
-        self.spr_screen.borrow_mut().set_pixel(
-            (self.cycle as i32) - 1,
-            self.scanline as i32,
-            self.get_color_from_palette_ram(bg_palette, bg_pixel),
-        );
+        let color = self.get_color_from_palette_ram(bg_palette, bg_pixel);
+
+        if (0..=HEIGHT).contains(&self.scanline) && (0..=WIDTH).contains(&self.cycle) {
+            write_pixel_to_output(
+                (self.scanline * HEIGHT + self.cycle - 1) * COLOR_CHANNELS,
+                &mut self.spr_screen,
+                color,
+            );
+        }
 
         self.cycle += 1;
         if self.cycle >= 341 {
             self.cycle = 0;
             self.scanline += 1;
-            if self.scanline >= 261 {
-                self.scanline = -1;
+            if self.scanline >= 262 {
+                self.scanline = 0;
                 self.frame_complete = true;
                 self.frame_complete_count += 1;
             }
@@ -335,7 +340,6 @@ impl PPU {
             // 0x0003 => {
             //     return 0;
             // } // OAM Address
-
             (0x0004, _) => {
                 return get_oam_field(&self.oam, self.oam_addr);
             } // OAM Data
@@ -387,10 +391,10 @@ impl PPU {
                 self.tram_addr |=
                     ((self.ctrl & (CTRL_NAMETABLE_X | CTRL_NAMETABLE_Y)) as u16) << 10;
             } // Control
-            0x0001 => self.mask = data, // Mask
-            0x0002 => {}                // Status
-            0x0003 => { self.oam_addr = data }                // OAM Address
-            0x0004 => { 
+            0x0001 => self.mask = data,     // Mask
+            0x0002 => {}                    // Status
+            0x0003 => self.oam_addr = data, // OAM Address
+            0x0004 => {
                 set_oam_field(&mut self.oam, self.oam_addr, data);
             } // OAM Data
             0x0005 => {
@@ -417,6 +421,7 @@ impl PPU {
                 }
             } // PPU Address
             0x0007 => {
+                // println!("vram: {:04X} -> {:02X}", self.vram_addr, data);
                 self.ppu_write(self.vram_addr, data);
                 self.vram_addr += if self.ctrl & CTRL_INCREMENT_MODE > 0 {
                     32
@@ -455,20 +460,22 @@ impl PPU {
             if let 0x0010 | 0x0014 | 0x0018 | 0x001C = local_addr {
                 local_addr &= !0x0010
             }
-            return self.palette[local_addr as usize] & self.grayscale();
+            return self.palette[local_addr as usize];
+            // return self.palette[local_addr as usize] & self.grayscale();
         }
         0
     }
 
     pub fn ppu_write(&mut self, addr: u16, data: u8) {
         let mut local_addr: u16 = addr & 0x3FFF;
-        let mut cart_steal: bool = false;
-        if let Ok(_) = self.cart.borrow_mut().ppu_write(addr, data) { 
-            cart_steal = true;
-        }
+        // let mut cart_steal: bool = false;
+        // if let Ok(_) = self.cart.borrow_mut().ppu_write(addr, data) {
+        //     cart_steal = true;
+        // }
         /* else */
-        if cart_steal {
-        } else if (0x0000..=0x1FFF).contains(&local_addr) {
+        // if cart_steal {
+        // } else
+        if (0x0000..=0x1FFF).contains(&local_addr) {
             // normally a rom but adding because adding random bugs can be fun!
             self.pattern_table[((local_addr & 0x1000) >> 12) as usize]
                 [(local_addr & 0x0FFF) as usize] = data;
@@ -502,22 +509,22 @@ impl PPU {
         }
     }
 
-    pub fn get_screen(&self) -> Rc<RefCell<olc::Sprite>> {
-        self.spr_screen.clone()
+    pub fn get_screen(&self) -> SprScreenT {
+        self.spr_screen
     }
 
     pub fn debug_get_status(&self) -> u8 {
         self.status
     }
-    pub fn debug_get_scanline(&self) -> i16 {
+    pub fn debug_get_scanline(&self) -> usize {
         self.scanline
     }
-    pub fn debug_get_cycle(&self) -> i16 {
+    pub fn debug_get_cycle(&self) -> usize {
         self.cycle
     }
 
-    pub fn get_name_table(&self, index: usize) -> Rc<RefCell<olc::Sprite>> {
-        self.spr_name_table[index].clone()
+    pub fn get_name_table(&self, index: usize) -> SprScreenT {
+        self.spr_name_table[index]
     }
 
     pub fn reset(&mut self) {
@@ -541,14 +548,7 @@ impl PPU {
         self.tram_addr = 0x0000
     }
 
-    // Gross 1:1 re implementation, maybe we look at this in the future
-    // Have to add rc refcell due to no copy/clone
-    pub fn get_pattern_table(&self, index: usize, palette_id: u8) -> Rc<RefCell<olc::Sprite>> {
-        if !(0..=1).contains(&index) {
-            println!("new sprite");
-            return Rc::new(RefCell::new(olc::Sprite::with_dims(128, 128)));
-        }
-
+    pub fn get_pattern_table(&mut self, index: usize, palette_id: u8) -> SprPatternTableUnitT {
         for y in 0..0x000F {
             for x in 0..0x000F {
                 let offset = y * 256 + x * 16;
@@ -556,505 +556,154 @@ impl PPU {
                     let mut tile_lsb: u8 = self.ppu_read((index as u16) * 0x1000 + offset + r);
                     let mut tile_msb: u8 = self.ppu_read((index as u16) * 0x1000 + offset + r + 8);
                     for c in 0..8 {
-                        let pixel: u8 = (tile_lsb & 0x01) + (tile_msb & 0x01);
+                        let pixel: u8 = ((tile_lsb & 0x01) << 1) | (tile_msb & 0x01);
                         tile_lsb >>= 1;
                         tile_msb >>= 1;
 
                         // println!("Setting pattern_table pixel x:{} y:{} -> {}", (x * 8 + (7 - c)), (y * 8 + r), self.get_color_from_palette_ram(palette_id, pixel));
 
-                        self.spr_pattern_table[index].borrow_mut().set_pixel(
-                            (x * 8 + (7 - c)) as i32,
-                            (y * 8 + r) as i32,
-                            self.get_color_from_palette_ram(palette_id, pixel),
-                        );
+                        let color = self.get_color_from_palette_ram(palette_id, pixel);
+                        let x_pos: usize = ((x as usize) * 8 + (7 - (c as usize)));
+                        let y_pos: usize =
+                            ((y as usize) * 8 + (r as usize)) * SPR_PATTERN_TABLE_SIZE;
+                        let pos = (y_pos + x_pos) * COLOR_CHANNELS;
+                        write_pixel_to_output(pos, &mut self.spr_pattern_table[index], color);
                     }
                 }
             }
         }
-
-        self.spr_pattern_table[index].clone()
+        self.spr_pattern_table[index]
     }
 
-    pub fn get_color_from_palette_ram(&self, palette: u8, pixel: u8) -> olc::Pixel {
+    pub fn get_color_from_palette_ram(&self, palette: u8, pixel: u8) -> Pixel {
         let idx = self.ppu_read(0x3F00 + ((palette << 2) + pixel) as u16) & 0x3F;
-        if self.debug { println!("Reading color at idx: {idx:04X?} | pal : {palette:02X?} | pix: {pixel:02X?}"); }
-        // println!("Returning : {:?}", self.pal_screen[idx as usize]);
-        self.pal_screen[idx as usize]
-    }
-
-    fn init_pal_screen() -> [olc::Pixel; 0x40] {
-        let mut pal_screen = [olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        }; 0x40];
-        pal_screen[0x00] = olc::Pixel {
-            r: 84,
-            g: 84,
-            b: 84,
-            a: 255,
-        };
-        pal_screen[0x01] = olc::Pixel {
-            r: 0,
-            g: 30,
-            b: 116,
-            a: 255,
-        };
-        pal_screen[0x02] = olc::Pixel {
-            r: 8,
-            g: 16,
-            b: 144,
-            a: 255,
-        };
-        pal_screen[0x03] = olc::Pixel {
-            r: 48,
-            g: 0,
-            b: 136,
-            a: 255,
-        };
-        pal_screen[0x04] = olc::Pixel {
-            r: 68,
-            g: 0,
-            b: 100,
-            a: 255,
-        };
-        pal_screen[0x05] = olc::Pixel {
-            r: 92,
-            g: 0,
-            b: 48,
-            a: 255,
-        };
-        pal_screen[0x06] = olc::Pixel {
-            r: 84,
-            g: 4,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x07] = olc::Pixel {
-            r: 60,
-            g: 24,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x08] = olc::Pixel {
-            r: 32,
-            g: 42,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x09] = olc::Pixel {
-            r: 8,
-            g: 58,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x0A] = olc::Pixel {
-            r: 0,
-            g: 64,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x0B] = olc::Pixel {
-            r: 0,
-            g: 60,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x0C] = olc::Pixel {
-            r: 0,
-            g: 50,
-            b: 60,
-            a: 255,
-        };
-        pal_screen[0x0D] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x0E] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x0F] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-
-        pal_screen[0x10] = olc::Pixel {
-            r: 152,
-            g: 150,
-            b: 152,
-            a: 255,
-        };
-        pal_screen[0x11] = olc::Pixel {
-            r: 8,
-            g: 76,
-            b: 196,
-            a: 255,
-        };
-        pal_screen[0x12] = olc::Pixel {
-            r: 48,
-            g: 50,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x13] = olc::Pixel {
-            r: 92,
-            g: 30,
-            b: 228,
-            a: 255,
-        };
-        pal_screen[0x14] = olc::Pixel {
-            r: 136,
-            g: 20,
-            b: 176,
-            a: 255,
-        };
-        pal_screen[0x15] = olc::Pixel {
-            r: 160,
-            g: 20,
-            b: 100,
-            a: 255,
-        };
-        pal_screen[0x16] = olc::Pixel {
-            r: 152,
-            g: 34,
-            b: 32,
-            a: 255,
-        };
-        pal_screen[0x17] = olc::Pixel {
-            r: 120,
-            g: 60,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x18] = olc::Pixel {
-            r: 84,
-            g: 90,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x19] = olc::Pixel {
-            r: 40,
-            g: 114,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x1A] = olc::Pixel {
-            r: 8,
-            g: 124,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x1B] = olc::Pixel {
-            r: 0,
-            g: 118,
-            b: 40,
-            a: 255,
-        };
-        pal_screen[0x1C] = olc::Pixel {
-            r: 0,
-            g: 102,
-            b: 120,
-            a: 255,
-        };
-        pal_screen[0x1D] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x1E] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x1F] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-
-        pal_screen[0x20] = olc::Pixel {
-            r: 236,
-            g: 238,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x21] = olc::Pixel {
-            r: 76,
-            g: 154,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x22] = olc::Pixel {
-            r: 120,
-            g: 124,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x23] = olc::Pixel {
-            r: 176,
-            g: 98,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x24] = olc::Pixel {
-            r: 228,
-            g: 84,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x25] = olc::Pixel {
-            r: 236,
-            g: 88,
-            b: 180,
-            a: 255,
-        };
-        pal_screen[0x26] = olc::Pixel {
-            r: 236,
-            g: 106,
-            b: 100,
-            a: 255,
-        };
-        pal_screen[0x27] = olc::Pixel {
-            r: 212,
-            g: 136,
-            b: 32,
-            a: 255,
-        };
-        pal_screen[0x28] = olc::Pixel {
-            r: 160,
-            g: 170,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x29] = olc::Pixel {
-            r: 116,
-            g: 196,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x2A] = olc::Pixel {
-            r: 76,
-            g: 208,
-            b: 32,
-            a: 255,
-        };
-        pal_screen[0x2B] = olc::Pixel {
-            r: 56,
-            g: 204,
-            b: 108,
-            a: 255,
-        };
-        pal_screen[0x2C] = olc::Pixel {
-            r: 56,
-            g: 180,
-            b: 204,
-            a: 255,
-        };
-        pal_screen[0x2D] = olc::Pixel {
-            r: 60,
-            g: 60,
-            b: 60,
-            a: 255,
-        };
-        pal_screen[0x2E] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x2F] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-
-        pal_screen[0x30] = olc::Pixel {
-            r: 236,
-            g: 238,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x31] = olc::Pixel {
-            r: 168,
-            g: 204,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x32] = olc::Pixel {
-            r: 188,
-            g: 188,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x33] = olc::Pixel {
-            r: 212,
-            g: 178,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x34] = olc::Pixel {
-            r: 236,
-            g: 174,
-            b: 236,
-            a: 255,
-        };
-        pal_screen[0x35] = olc::Pixel {
-            r: 236,
-            g: 174,
-            b: 212,
-            a: 255,
-        };
-        pal_screen[0x36] = olc::Pixel {
-            r: 236,
-            g: 180,
-            b: 176,
-            a: 255,
-        };
-        pal_screen[0x37] = olc::Pixel {
-            r: 228,
-            g: 196,
-            b: 144,
-            a: 255,
-        };
-        pal_screen[0x38] = olc::Pixel {
-            r: 204,
-            g: 210,
-            b: 120,
-            a: 255,
-        };
-        pal_screen[0x39] = olc::Pixel {
-            r: 180,
-            g: 222,
-            b: 120,
-            a: 255,
-        };
-        pal_screen[0x3A] = olc::Pixel {
-            r: 168,
-            g: 226,
-            b: 144,
-            a: 255,
-        };
-        pal_screen[0x3B] = olc::Pixel {
-            r: 152,
-            g: 226,
-            b: 180,
-            a: 255,
-        };
-        pal_screen[0x3C] = olc::Pixel {
-            r: 160,
-            g: 214,
-            b: 228,
-            a: 255,
-        };
-        pal_screen[0x3D] = olc::Pixel {
-            r: 160,
-            g: 162,
-            b: 160,
-            a: 255,
-        };
-        pal_screen[0x3E] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-        pal_screen[0x3F] = olc::Pixel {
-            r: 0,
-            g: 0,
-            b: 0,
-            a: 255,
-        };
-        pal_screen
+        self.possible_colors[idx as usize]
     }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ObjectAttributeEntry {
-    y: u8,
-    id: u8,
-    attribute: u8,
-    x: u8,
+    pub y: u8,
+    pub id: u8,
+    pub attribute: u8,
+    pub x: u8,
 }
 
-impl ObjectAttributeEntry {
-}
+impl ObjectAttributeEntry {}
 
 pub fn set_oam_field(oam: &mut [ObjectAttributeEntry; 64], addr: u8, data: u8) {
     let (idx, remainder) = (addr / 64, addr % 4);
     match remainder {
-        0 => { oam[idx as usize].y = data },
-        1 => { oam[idx as usize].id = data },
-        2 => { oam[idx as usize].attribute = data },
-        3 => { oam[idx as usize].x = data },
+        0 => oam[idx as usize].y = data,
+        1 => oam[idx as usize].id = data,
+        2 => oam[idx as usize].attribute = data,
+        3 => oam[idx as usize].x = data,
         _ => { /* No */ }
     }
 }
 pub fn get_oam_field(oam: &[ObjectAttributeEntry; 64], addr: u8) -> u8 {
     let (idx, remainder) = (addr / 64, addr % 4);
     match remainder {
-        0 => { oam[idx as usize].y }
-        1 => { oam[idx as usize].id }
-        2 => { oam[idx as usize].attribute }
-        3 => { oam[idx as usize].x }
-        _ => { /* No */ 0 }
+        0 => oam[idx as usize].y,
+        1 => oam[idx as usize].id,
+        2 => oam[idx as usize].attribute,
+        3 => oam[idx as usize].x,
+        _ => {
+            /* No */
+            0
+        }
     }
 }
 
-fn ppu_ranges() {
-    //  Sprites
-    let chr_rom = (0x0000..=0x1FFF); // pattern memory
+#[derive(Debug, Default, Clone, Copy)]
+/// R G B
+pub struct Pixel(u8, u8, u8);
 
-    // Layout
-    let name_table = (0x2000..=0x3EFF); // vram
+#[derive(Debug, Default, Clone, Copy)]
+/// R G B A
+pub struct AlphaPixel(u8, u8, u8, u8);
 
-    // Colors
-    let palette_memory = (0x3F00..=0x3FFF);
+fn write_pixel_to_output(pos: usize, spr: &mut [u8], pix: Pixel) {
+    spr[pos + 0] = pix.0;
+    spr[pos + 1] = pix.1;
+    spr[pos + 2] = pix.2;
 }
 
-// https://www.nesdev.org/wiki/PPU_registers
+fn write_alpha_pixel_to_output(pos: usize, spr: &mut [u8], pix: AlphaPixel) {
+    spr[pos + 0] = pix.0;
+    spr[pos + 1] = pix.1;
+    spr[pos + 2] = pix.2;
+    spr[pos + 3] = pix.3;
+}
 
-// Status
-pub const STATUS_UNUSED_MASK: u8 = 0b0001_1111;
-pub const STATUS_SPRT_OVERFLOW_MASK: u8 = 0b0010_0000;
-pub const STATUS_SPRT_HIT_ZERO_MASK: u8 = 0b0100_0000;
-pub const STATUS_VERTICAL_BLANK_MASK: u8 = 0b1000_0000;
+fn init_pal_screen() -> [Pixel; 0x40] {
+    let mut pal_screen = [Pixel::default(); 0x40];
+    pal_screen[0x00] = Pixel(84, 84, 84);
+    pal_screen[0x01] = Pixel(0, 30, 116);
+    pal_screen[0x02] = Pixel(8, 16, 144);
+    pal_screen[0x03] = Pixel(48, 0, 136);
+    pal_screen[0x04] = Pixel(68, 0, 100);
+    pal_screen[0x05] = Pixel(92, 0, 48);
+    pal_screen[0x06] = Pixel(84, 4, 0);
+    pal_screen[0x07] = Pixel(60, 24, 0);
+    pal_screen[0x08] = Pixel(32, 42, 0);
+    pal_screen[0x09] = Pixel(8, 58, 0);
+    pal_screen[0x0A] = Pixel(0, 64, 0);
+    pal_screen[0x0B] = Pixel(0, 60, 0);
+    pal_screen[0x0C] = Pixel(0, 50, 60);
+    pal_screen[0x0D] = Pixel(0, 0, 0);
+    pal_screen[0x0E] = Pixel(0, 0, 0);
+    pal_screen[0x0F] = Pixel(0, 0, 0);
 
-// Mask
-pub const MASK_GRAYSCALE: u8 = 0b0000_0001;
-pub const MASK_RENDER_BACKGROUND_LEFT: u8 = 0b0000_0010;
-pub const MASK_RENDER_SPRITES_LEFT: u8 = 0b0000_0100;
-pub const MASK_RENDER_BACKGROUND: u8 = 0b0000_1000;
-pub const MASK_RENDER_SPRITES: u8 = 0b0001_0000;
-pub const MASK_ENHANCE_RED: u8 = 0b0010_0000;
-pub const MASK_ENHANCE_GREEN: u8 = 0b0100_0000;
-pub const MASK_ENHANCE_BLUE: u8 = 0b1000_0000;
+    pal_screen[0x10] = Pixel(152, 150, 152);
+    pal_screen[0x11] = Pixel(8, 76, 196);
+    pal_screen[0x12] = Pixel(48, 50, 236);
+    pal_screen[0x13] = Pixel(92, 30, 228);
+    pal_screen[0x14] = Pixel(136, 20, 176);
+    pal_screen[0x15] = Pixel(160, 20, 100);
+    pal_screen[0x16] = Pixel(152, 34, 32);
+    pal_screen[0x17] = Pixel(120, 60, 0);
+    pal_screen[0x18] = Pixel(84, 90, 0);
+    pal_screen[0x19] = Pixel(40, 114, 0);
+    pal_screen[0x1A] = Pixel(8, 124, 0);
+    pal_screen[0x1B] = Pixel(0, 118, 40);
+    pal_screen[0x1C] = Pixel(0, 102, 120);
+    pal_screen[0x1D] = Pixel(0, 0, 0);
+    pal_screen[0x1E] = Pixel(0, 0, 0);
+    pal_screen[0x1F] = Pixel(0, 0, 0);
 
-// CTRL
-pub const CTRL_NAMETABLE_X: u8 = 0b0000_0001;
-pub const CTRL_NAMETABLE_Y: u8 = 0b0000_0010;
-pub const CTRL_INCREMENT_MODE: u8 = 0b0000_0100;
-pub const CTRL_PATTERN_SPRITE: u8 = 0b0000_1000;
-pub const CTRL_PATTERN_BACKGROUND: u8 = 0b0001_0000;
-pub const CTRL_SPRITE_SIZE: u8 = 0b0010_0000;
-pub const CTRL_SLAVE_MODE: u8 = 0b0100_0000;
-pub const CTRL_ENABLE_NMI: u8 = 0b1000_0000;
+    pal_screen[0x20] = Pixel(236, 238, 236);
+    pal_screen[0x21] = Pixel(76, 154, 236);
+    pal_screen[0x22] = Pixel(120, 124, 236);
+    pal_screen[0x23] = Pixel(176, 98, 236);
+    pal_screen[0x24] = Pixel(228, 84, 236);
+    pal_screen[0x25] = Pixel(236, 88, 180);
+    pal_screen[0x26] = Pixel(236, 106, 100);
+    pal_screen[0x27] = Pixel(212, 136, 32);
+    pal_screen[0x28] = Pixel(160, 170, 0);
+    pal_screen[0x29] = Pixel(116, 196, 0);
+    pal_screen[0x2A] = Pixel(76, 208, 32);
+    pal_screen[0x2B] = Pixel(56, 204, 108);
+    pal_screen[0x2C] = Pixel(56, 180, 204);
+    pal_screen[0x2D] = Pixel(60, 60, 60);
+    pal_screen[0x2E] = Pixel(0, 0, 0);
+    pal_screen[0x2F] = Pixel(0, 0, 0);
 
-// PPU Register
-pub const REG_COARSE_X: u16 = 0b0000_0000_0001_1111;
-pub const REG_COARSE_Y: u16 = 0b0000_0011_1110_0000;
-pub const REG_NAMETABLE_X: u16 = 0b0000_0100_0000_0000;
-pub const REG_NAMETABLE_Y: u16 = 0b0000_1000_0000_0000;
-pub const REG_FINE_Y: u16 = 0b0111_0000_0000_0000;
-pub const REG_UNUSED: u16 = 0b1000_0000_0000_0000;
+    pal_screen[0x30] = Pixel(236, 238, 236);
+    pal_screen[0x31] = Pixel(168, 204, 236);
+    pal_screen[0x32] = Pixel(188, 188, 236);
+    pal_screen[0x33] = Pixel(212, 178, 236);
+    pal_screen[0x34] = Pixel(236, 174, 236);
+    pal_screen[0x35] = Pixel(236, 174, 212);
+    pal_screen[0x36] = Pixel(236, 180, 176);
+    pal_screen[0x37] = Pixel(228, 196, 144);
+    pal_screen[0x38] = Pixel(204, 210, 120);
+    pal_screen[0x39] = Pixel(180, 222, 120);
+    pal_screen[0x3A] = Pixel(168, 226, 144);
+    pal_screen[0x3B] = Pixel(152, 226, 180);
+    pal_screen[0x3C] = Pixel(160, 214, 228);
+    pal_screen[0x3D] = Pixel(160, 162, 160);
+    pal_screen[0x3E] = Pixel(0, 0, 0);
+    pal_screen[0x3F] = Pixel(0, 0, 0);
+    pal_screen
+}

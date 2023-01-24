@@ -85,7 +85,7 @@ impl Cartridge {
             1 => {
                 prg_memory.resize((headder.prg_rom_chunks as usize) * 16384, 0);
                 f.read_exact(&mut prg_memory)?;
-                
+
                 if headder.chr_rom_chunks == 0 {
                     chr_memory.resize(8192, 0);
                 } else {
@@ -149,6 +149,7 @@ pub enum Rom {
     CPUTest,
     PpuColorTest,
     Mario,
+    DonkeyKong,
 }
 
 pub fn load_cart(pick: Rom) -> io::Result<Cartridge> {
@@ -157,6 +158,7 @@ pub fn load_cart(pick: Rom) -> io::Result<Cartridge> {
         Rom::CPUTest => "test-roms/cpu/nestest.nes".to_string(),
         Rom::PpuColorTest => "test-roms/ppu/color_test.nes".to_string(),
         Rom::Mario => "test-roms/carts/super_mario.nes".to_string(),
+        Rom::DonkeyKong => "test-roms/carts/Donkey Kong (World) (Rev A).nes".to_string(),
     };
     Ok(Cartridge::new(cart_name)?)
 }

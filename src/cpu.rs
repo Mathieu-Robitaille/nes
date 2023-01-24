@@ -80,7 +80,8 @@ pub struct Cpu6502 {
     pub(crate) cycles: u8,
     pub(crate) opcode: u8,
     pub(crate) clock_count: u32,
-    pub(crate) instruction_count: u32,
+    pub(crate) instruction_count: usize,
+    pub instruction_complete: bool,
 
     pub(crate) bus: Bus,
 }
@@ -125,6 +126,7 @@ impl Cpu6502 {
     pub(crate) fn clock(&mut self) -> Option<String> {
         let mut ret: Option<String> = None;
         if self.cycles == 0 {
+            println!("{:04X}", self.pc);
             let mut ins_str: String = format!("{:04X?}  ", self.pc);
             let mut following_bytes: Vec<u8> = vec![];
 
@@ -134,7 +136,8 @@ impl Cpu6502 {
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
 
-            self.pc += 1;
+            let (r, _) = self.pc.overflowing_add(1);
+            self.pc = r;
 
             let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
 
@@ -162,8 +165,9 @@ impl Cpu6502 {
             if self.opcode != 0x60 {
                 ins_str.push_str("                       ");
             } else {
-                let target = self.read_bus_two_bytes(0x0100 + ((self.stack_pointer) as u16) -1);
-                ins_str.push_str(format!(" {:04X?} -> {:04X?}          ", self.pc, target).as_str());
+                let target = self.read_bus_two_bytes(0x0100 + ((self.stack_pointer) as u16) - 1);
+                ins_str
+                    .push_str(format!(" {:04X?} -> {:04X?}          ", self.pc, target).as_str());
             }
 
             ins_str.push_str(
@@ -182,6 +186,7 @@ impl Cpu6502 {
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
             self.instruction_count += 1;
+            self.instruction_complete = true;
 
             ret = Some(ins_str);
         }
@@ -281,6 +286,7 @@ impl Cpu6502 {
             cycles: 1,
             clock_count: 0,
             instruction_count: 1,
+            instruction_complete: false,
             bus: b,
         }
     }
@@ -288,7 +294,7 @@ impl Cpu6502 {
 
 impl BusReader for Cpu6502 {
     fn bus_read(&mut self, addr: u16, _read_only: bool) -> u8 {
-        self.bus.cpu_read(addr, false)
+        self.bus.cpu_read(addr, true)
     }
 }
 

@@ -1,26 +1,38 @@
 #![allow(unused)]
-extern crate olc_pixel_game_engine;
-
-use crate::olc_pixel_game_engine as olc;
 
 mod audio;
 mod bus;
 mod cartridge;
+mod consts;
 mod cpu;
 mod debug;
 mod disassembler;
-mod disk;
 mod emulator;
 mod instructions;
 mod mapper;
 mod nes;
 mod ppu;
+mod renderer;
 
+use glium::{backend::Facade, Display};
 use nes::Nes;
+use renderer::*;
 
 fn main() {
-    let mut nes: Nes = Nes::new();
-    // Launches the program in 200x100 "pixels" screen, where each "pixel" is 4x4 pixel square,
-    // and starts the main game loop.
-    olc::start("Hello, World!", &mut nes, 780, 480, 1, 1).unwrap();
+    let mut main_nes: Nes = Nes::new();
+    let mut system = init();
+    let mut emulation_state = emulator::EmulationState::new();
+    emulation_state
+        .register_textures(system.display.get_context(), system.renderer.textures())
+        .expect("Failed to register textures.");
+
+    system.main_loop(main_nes, emulation_state, move |_, nes, state, ui| {
+        debug::draw_debug(nes, state, ui);
+    });
+}
+
+struct NesEmulator {
+    nes: Nes,
+    controls: emulator::EmulationControls,
+    state: emulator::EmulationState,
 }

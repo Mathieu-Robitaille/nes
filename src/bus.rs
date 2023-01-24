@@ -39,7 +39,7 @@ impl Bus {
             dma_addr: 0,
             dma_data: 0,
             dma_transfer: false,
-            dma_dummy: true
+            dma_dummy: true,
         }
     }
 
@@ -67,19 +67,19 @@ impl Bus {
         //     println!("Writing to ppu {addr:04X?}");
         // }
 
-        if let Ok(_) = self.cart.borrow_mut().cpu_write(addr, data) { return; } 
+        if let Ok(_) = self.cart.borrow_mut().cpu_write(addr, data) {
+            return;
+        }
         if (0x0000..=0x1FFF).contains(&addr) {
             self.ram[(addr & 0x07FF) as usize] = data;
         } else if (0x2000..=0x3FFF).contains(&addr) {
             // This can borrow_mut the cart later.
-            // println!("Writing data to ppu: {addr:04X?} -> {data:02X?}");
             self.ppu.cpu_write(addr & 0x0007, data)
         } else if addr == 0x4014 {
             self.dma_page = data;
             self.dma_addr = 0x00;
             self.dma_transfer = true;
         } else if (0x4016..=0x4017).contains(&addr) {
-
         }
     }
 }

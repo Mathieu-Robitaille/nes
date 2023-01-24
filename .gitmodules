@@ -3,6 +3,3 @@
 	path = crates/rs-bitfield
 	url = git@github.com:MauriceKayser/rs-bitfield.git
 
-[submodule "crates/olcPixelGameEngine-rs"]
-	path = crates/olcPixelGameEngine-rs
-	url = git@github.com:sadikovi/olcPixelGameEngine-rs.git

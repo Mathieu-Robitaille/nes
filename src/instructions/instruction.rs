@@ -98,7 +98,8 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         // you cant directly branch to any address in the addressable range.
         AddressingMode::REL => {
             cpu.addr_rel = cpu.read_bus(cpu.pc) as u16;
-            cpu.pc += 1;
+            let (r, _) = cpu.pc.overflowing_add(1);
+            cpu.pc = r;
             if cpu.addr_rel & 0x80 > 0 {
                 cpu.addr_rel |= 0xFF00;
             }
