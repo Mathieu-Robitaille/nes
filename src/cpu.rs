@@ -84,6 +84,10 @@ pub struct Cpu6502 {
     pub instruction_complete: bool,
 
     pub(crate) bus: Bus,
+    pc_before: u16,
+    a_before: u8,
+    x_before: u8,
+    y_before: u8,
 }
 
 impl Cpu6502 {
@@ -123,16 +127,40 @@ impl Cpu6502 {
         }
     }
 
+    pub fn generate_debug_string(&self) -> String {
+        let Cpu6502 {
+            acc,
+            x_reg,
+            y_reg,
+            stack_pointer,
+            clock_count,
+            instruction_count,
+            opcode,
+            pc_before,
+            a_before,
+            x_before,
+            y_before,
+            ..
+        } = self;
+        let mut ins_str: String = format!(
+            "c{:} i{:} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} ${:04X}: {:02X}",
+            clock_count, instruction_count, a_before, x_before, y_before, stack_pointer, pc_before, opcode
+        );
+        ins_str
+    }
+
     pub(crate) fn clock(&mut self) -> Option<String> {
         let mut ret: Option<String> = None;
+        self.clock_count += 1;
+        self.cycles -= 1;
         if self.cycles == 0 {
-            println!("{:04X}", self.pc);
-            let mut ins_str: String = format!("{:04X?}  ", self.pc);
-            let mut following_bytes: Vec<u8> = vec![];
 
+            self.a_before = self.acc;
+            self.x_before = self.x_reg;
+            self.y_before = self.y_reg;
+
+            self.pc_before = self.pc;
             self.opcode = self.read_bus(self.pc);
-            ins_str.push_str(format!("{:02X?} ", self.opcode).as_str());
-
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
 
@@ -141,57 +169,22 @@ impl Cpu6502 {
 
             let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
 
-            for i in 0..decode_bytes_used(ins.addr_mode) {
-                following_bytes.push(self.read_bus(self.pc + (i as u16)));
-            }
-
-            for i in 0..2 {
-                if let Some(x) = following_bytes.get(i) {
-                    ins_str.push_str(format!("{:02X} ", x).as_str());
-                } else {
-                    ins_str.push_str("   ");
-                }
-            }
-
-            ins_str.push_str(format!(" {} ", ins.name).as_str());
-            for i in 0..2 {
-                if let Some(x) = following_bytes.get(1 - i) {
-                    ins_str.push_str(format!("{:02X}", x).as_str());
-                } else {
-                    ins_str.push_str("  ");
-                }
-            }
-
-            if self.opcode != 0x60 {
-                ins_str.push_str("                       ");
-            } else {
-                let target = self.read_bus_two_bytes(0x0100 + ((self.stack_pointer) as u16) - 1);
-                ins_str
-                    .push_str(format!(" {:04X?} -> {:04X?}          ", self.pc, target).as_str());
-            }
-
-            ins_str.push_str(
-                format!(
-                    "A:{:02X} X:{:02X} Y:{:02X} SP:{:02X}",
-                    self.acc, self.x_reg, self.y_reg, self.stack_pointer
-                )
-                .as_str(),
-            );
-
             self.addressing_mode = ins.addr_mode.clone();
-            let additional_cycle1: u8 = process_instruction_addressing_mode(ins, self);
-            let additional_cycle2: u8 = (ins.function)(self);
-            self.cycles = ins.clock_cycles + additional_cycle1 + additional_cycle2;
+            let page_change_additional_cycle: u8 = process_instruction_addressing_mode(ins, self);
 
+            
+            // Run the instruction
+            (ins.function)(self); /* removed additional clock cycles as it was wroooong */ 
+            
+            self.cycles += ins.clock_cycles + page_change_additional_cycle;
+            
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
             self.instruction_count += 1;
             self.instruction_complete = true;
-
-            ret = Some(ins_str);
+            
+            ret = Some(self.generate_debug_string());
         }
-        self.clock_count += 1;
-        self.cycles -= 1;
         ret
     }
 
@@ -204,15 +197,21 @@ impl Cpu6502 {
         self.acc = 0;
         self.x_reg = 0;
         self.y_reg = 0;
-        self.stack_pointer = 0xFD;
+
+        let (r, _) = self.stack_pointer.overflowing_sub(3);
+
+        self.stack_pointer = r;
+
         self.status = 0x00 | CPUFlags::U;
 
         self.addr_rel = 0x0000;
         self.addr_abs = 0x0000;
         self.fetched = 0x0000;
-        self.instruction_count = 1;
+        self.instruction_count = 0;
 
-        self.cycles = 8;
+        self.clock_count = 0;
+
+        self.cycles = 7;
     }
 
     fn irq(&mut self) {
@@ -262,19 +261,12 @@ impl Cpu6502 {
         self.fetched
     }
 
-    pub fn complete(&self) -> bool {
-        if self.cycles == 0 {
-            return true;
-        }
-        false
-    }
-
     pub fn new(b: Bus) -> Self {
         Cpu6502 {
             acc: 0x00,
             x_reg: 0x00,
             y_reg: 0x00,
-            stack_pointer: 0x00,
+            stack_pointer: 0xFD,
             pc: 0x0000,
             status: 0x00,
             fetched: 0x00,
@@ -285,16 +277,20 @@ impl Cpu6502 {
             opcode: 0x00,
             cycles: 1,
             clock_count: 0,
-            instruction_count: 1,
+            instruction_count: 0,
             instruction_complete: false,
             bus: b,
+            pc_before: 0x0000,
+            a_before: 0,
+            x_before: 0,
+            y_before: 0,
         }
     }
 }
 
 impl BusReader for Cpu6502 {
     fn bus_read(&mut self, addr: u16, _read_only: bool) -> u8 {
-        self.bus.cpu_read(addr, true)
+        self.bus.cpu_read(addr, false)
     }
 }
 

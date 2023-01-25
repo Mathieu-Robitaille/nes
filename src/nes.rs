@@ -1,6 +1,7 @@
 use crate::bus::Bus;
 use crate::cartridge::{load_cart, Rom};
 use crate::consts::{
+    emulation_consts::EMU_DEBUG,
     nes_consts::CART,
     ppu_consts,
     screen_consts::{HEIGHT, WIDTH},
@@ -89,7 +90,13 @@ impl Nes {
                     }
                 }
             } else {
-                self.cpu.clock();
+                if !EMU_DEBUG {
+                    if let Some(x) = self.cpu.clock() {
+                        println!("{x}")
+                    }
+                } else {
+                    self.cpu.clock();
+                }
             }
         }
 
@@ -142,5 +149,36 @@ impl Nes {
 
     pub fn get_oam(&self) -> [ObjectAttributeEntry; ppu_consts::OAM_SIZE] {
         self.cpu.bus.ppu.oam.clone()
+    }
+
+    pub fn get_ppu_status(&self) -> u8 {
+        self.cpu.bus.ppu.debug_get_status()
+    }
+    pub fn get_ppu_scanline(&self) -> usize {
+        self.cpu.bus.ppu.debug_get_scanline()
+    }
+    pub fn get_ppu_cycle(&self) -> usize {
+        self.cpu.bus.ppu.debug_get_cycle()
+    }
+    pub fn get_ppu_vram(&self) -> u16 {
+        self.cpu.bus.ppu.debug_get_vram_addr()
+    }
+    pub fn get_ppu_tram(&self) -> u16 {
+        self.cpu.bus.ppu.debug_get_tram_addr()
+    }
+    pub fn get_ppu_ctrl(&self) -> u8 {
+        self.cpu.bus.ppu.debug_get_ctrl()
+    }
+    pub fn get_ppu_mask(&self) -> u8 {
+        self.cpu.bus.ppu.debug_get_mask()
+    }
+    pub fn get_ppu_frame_count(&self) -> i32 {
+        self.cpu.bus.ppu.frame_complete_count
+    }
+    pub fn clock_one_scanline(&mut self) {
+        let sl = self.cpu.bus.ppu.debug_get_scanline();
+        while self.cpu.bus.ppu.debug_get_scanline() == sl {
+            self.clock_one_instruction();
+        }
     }
 }

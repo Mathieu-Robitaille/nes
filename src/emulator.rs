@@ -104,15 +104,10 @@ impl EmulationState {
         Ok(())
     }
 
-    fn clock_one_frame(&self, nes: &mut Nes) {
-        nes.clock_one_frame();
-    }
-
-    fn clock_one_instruction(&self, nes: &mut Nes) {
-        nes.clock_one_instruction();
-    }
-
-    fn reset(&self, nes: &mut Nes) {
+    fn reset(&mut self, nes: &mut Nes) {
+        self.cycles = 0;
+        self.watch_addr = 0;
+        self.frame_sync = FrameSync::Stop;
         nes.reset();
     }
 
@@ -121,11 +116,11 @@ impl EmulationState {
         F: Facade,
     {
         match self.frame_sync {
-            FrameSync::Wait => {
-                self.clock_one_frame(nes);
+            FrameSync::Run => {
+                nes.clock_one_frame();
             }
             FrameSync::OneFrame => {
-                self.clock_one_frame(nes);
+                nes.clock_one_frame();
                 self.frame_sync = FrameSync::Stop;
             }
             FrameSync::OneCycle => {
@@ -133,19 +128,26 @@ impl EmulationState {
                 self.frame_sync = FrameSync::Stop;
             }
             FrameSync::OneInstruction => {
-                self.clock_one_instruction(nes);
+                nes.clock_one_instruction();
+                self.frame_sync = FrameSync::Stop;
+            }
+            FrameSync::OneScanline => {
+                nes.clock_one_scanline();
                 self.frame_sync = FrameSync::Stop;
             }
             FrameSync::XCycles => {
                 while self.cycles > 0 {
-                    self.clock_one_instruction(nes);
+                    nes.clock_one_instruction();
                     self.cycles -= 1;
                 }
                 self.frame_sync = FrameSync::Stop;
             }
             FrameSync::PCWatch => {
-                while nes.cpu.pc != self.watch_addr {
-                    self.clock_one_instruction(nes);
+                println!("Running to instruction {:04X}", self.watch_addr);
+                if self.watch_addr != 0 {
+                    while self.watch_addr != nes.cpu.pc {
+                        nes.clock_one_instruction();
+                    }
                 }
                 self.frame_sync = FrameSync::Stop;
             }
@@ -216,15 +218,16 @@ impl EmulationState {
 }
 
 pub enum FrameSync {
-    Wait,             /* Hold thread until frame is complete */
+    Run,             /* Hold thread until frame is complete */
     DisplayAvailable, /* Display whatever is available in the ppu */
     DisplayPrevious,  /* redraw the previous frame */
     RedrawAvailable,  /* Skip redraw until frame is available (?) */
     OneCycle,         /* Run the bus clock once */
     OneInstruction,   /* Run one instruction then stop */
+    OneScanline,      /* Only draw one scanline */
+    OneFrame,         /* Only draw one frame, Control Flow should drop thihs to Stop after the frame */
     XCycles,          /* Run for x cycles */
     PCWatch,          /* Run until the program counter hits this addr */
-    OneFrame, /* Only draw one frame, Control Flow should drop thihs to Stop after the frame */
     Stop,     /* Do nothing */
     Reset,
 }

@@ -5,7 +5,7 @@ use crate::instructions::instruction_functions::XXX;
 pub struct Instruction {
     pub(crate) name: &'static str,
     pub(crate) addr_mode: AddressingMode,
-    pub(crate) function: for<'r> fn(&'r mut Cpu6502) -> u8,
+    pub(crate) function: for<'r> fn(&'r mut Cpu6502),
     pub(crate) clock_cycles: u8,
 }
 

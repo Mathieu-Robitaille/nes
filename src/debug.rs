@@ -20,12 +20,19 @@ use std::path::Path;
 use std::rc::Rc;
 use std::time::Instant;
 
+///
+/// The goal with this is to have everything controlled in debug consts
+/// Maybe later I can add a yaml file or something to read/write positions
+///
+
 pub fn draw_debug(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
     draw_cpu(nes, ui);
     draw_ppu_buffer(nes, state, ui);
     draw_ppu_tables(nes, state, ui);
     emulation_control(nes, state, ui);
+    draw_ppu_status(nes, ui);
     // draw_oam(nes, ui);
+    // draw_ram("Stack".to_string(), 16, 0x100, nes, ui);
     draw_code(10, nes, ui);
 }
 
@@ -35,8 +42,14 @@ fn emulation_control(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
         .build(|| {
             let mut cycles: String = String::new();
             let mut watch_addr: String = String::new();
-            ui.text(format!("FPS: {:.02}", 1f32 / state.last_frame_time.elapsed().as_secs_f32()));
+            ui.text(format!(
+                "FPS: {:.02}",
+                1f32 / state.last_frame_time.elapsed().as_secs_f32()
+            ));
             state.last_frame_time = Instant::now();
+            if ui.button("R WE GAYMEN?!") {
+                state.frame_sync = FrameSync::Run;
+            };
             if ui.button("Run one frame.") {
                 state.frame_sync = FrameSync::OneFrame;
             };
@@ -46,30 +59,29 @@ fn emulation_control(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
             if ui.button("Run one instruction.") {
                 state.frame_sync = FrameSync::OneInstruction;
             };
+            if ui.button("Run one scanline.") {
+                state.frame_sync = FrameSync::OneScanline;
+            };
 
-            if EMU_DEBUG { /* Ffffffffffffffffffffffffffffff */
-                {
-                    if ui.input_text("##", &mut cycles)
-                        .enter_returns_true(true)
-                        .chars_decimal(true)
-                        .hint("Run X Instructions.")
-                        .build() {
-                            state.frame_sync = FrameSync::XCycles;
-                            state.cycles = cycles.parse::<usize>().unwrap_or(0);
-                        };
-                }
-    
-                {
-                    if ui.input_text("##", &mut watch_addr)
-                        .enter_returns_true(true)
-                        .hint("Set PC Watch.") /* halt execution when the program counter hits this point */ 
-                        .build() {
-                            state.frame_sync = FrameSync::XCycles;
-                            state.watch_addr = watch_addr.parse::<u16>().unwrap_or(0);
-                        };
-                }
-            }
-
+            if ui
+                .input_text("Ins", &mut cycles)
+                .enter_returns_true(true)
+                .chars_decimal(true)
+                .hint("Run X Instructions.")
+                .build()
+            {
+                state.frame_sync = FrameSync::XCycles;
+                state.cycles = cycles.parse::<usize>().unwrap_or(0);
+            };
+            if ui
+                .input_text("PC Watch", &mut watch_addr)
+                .enter_returns_true(true)
+                .hint("Set PC Watch.") /* halt execution when the program counter hits this point */
+                .build()
+            {
+                state.frame_sync = FrameSync::PCWatch;
+                state.watch_addr = u16::from_str_radix(&watch_addr, 16).unwrap_or(0);
+            };
 
             if ui.button("Stop.") {
                 state.frame_sync = FrameSync::Stop;
@@ -78,20 +90,11 @@ fn emulation_control(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
                 state.frame_sync = FrameSync::Reset;
             };
             ui.separator();
-            if ui.button("Print palette.") {
-                println!("{:?}", nes.cpu.bus.ppu.palette);
-            };
+
         });
 }
 
 fn draw_cpu(nes: &mut Nes, ui: &Ui) {
-    fn color(f: bool) -> [f32; 4] {
-        if f {
-            return debug_color::GREEN;
-        }
-        debug_color::RED
-    }
-
     ui.window("CPU Debug Info")
         .position(CPU_POS, Condition::Always)
         .size(CPU_SIZE, Condition::Always)
@@ -102,7 +105,7 @@ fn draw_cpu(nes: &mut Nes, ui: &Ui) {
                     ui.same_line();
                     ui.text_colored(color(cond > 0), c);
                 }
-                ui.text("Status: ");
+                ui.text("Status:");
 
                 f(ui, nes.cpu.status & CPUFlags::N, "N");
                 f(ui, nes.cpu.status & CPUFlags::V, "V");
@@ -161,50 +164,62 @@ fn draw_cpu(nes: &mut Nes, ui: &Ui) {
 
                 ui.table_next_column();
                 ui.text(format!("{:}", nes.cpu.instruction_count));
+
+                ui.table_next_column();
+                ui.text("Clock: ");
+
+                ui.table_next_column();
+                ui.text(format!("{:}", nes.cpu.clock_count));
             }
         });
 }
 
-fn draw_ram(rows: usize, addr: u16, nes: &mut Nes, ui: &Ui) {
-    if let Some(_t) = ui.begin_table_header(
-        "table-headers",
-        [
-            TableColumnSetup::new("Page"),
-            TableColumnSetup::new("00"),
-            TableColumnSetup::new("01"),
-            TableColumnSetup::new("02"),
-            TableColumnSetup::new("03"),
-            TableColumnSetup::new("04"),
-            TableColumnSetup::new("05"),
-            TableColumnSetup::new("06"),
-            TableColumnSetup::new("07"),
-            TableColumnSetup::new("08"),
-            TableColumnSetup::new("09"),
-            TableColumnSetup::new("0A"),
-            TableColumnSetup::new("0B"),
-            TableColumnSetup::new("0C"),
-            TableColumnSetup::new("0D"),
-            TableColumnSetup::new("0E"),
-            TableColumnSetup::new("0F"),
-        ],
-    ) {
-        let root_addr = addr & !0x000F;
-        let top = root_addr - (rows as u16) * 0xF;
-        let bottom = root_addr + (rows as u16) * 0xF;
-        for row in 0..rows {
-            let row16 = row as u16;
-            ui.table_next_column();
-            ui.text(format!("{:04X}", top + (row16 * 0xF)));
-            for col in 0..0x0F {
-                let col16 = col as u16;
-                ui.table_next_column();
-                ui.text(format!(
-                    "{:02X}",
-                    nes.cpu.bus.cpu_read(root_addr + row16 + col16, true)
-                ));
+fn draw_ram(title: String, rows: usize, addr: u16, nes: &mut Nes, ui: &Ui) {
+    ui.window(title)
+        /* Fix me*/
+        .size([800f32, 400f32], Condition::Appearing)
+        .position([150f32, 400f32], Condition::Appearing)
+        .build(|| {
+            if let Some(_t) = ui.begin_table_header(
+                "table-headers",
+                [
+                    TableColumnSetup::new("Page"),
+                    TableColumnSetup::new("00"),
+                    TableColumnSetup::new("01"),
+                    TableColumnSetup::new("02"),
+                    TableColumnSetup::new("03"),
+                    TableColumnSetup::new("04"),
+                    TableColumnSetup::new("05"),
+                    TableColumnSetup::new("06"),
+                    TableColumnSetup::new("07"),
+                    TableColumnSetup::new("08"),
+                    TableColumnSetup::new("09"),
+                    TableColumnSetup::new("0A"),
+                    TableColumnSetup::new("0B"),
+                    TableColumnSetup::new("0C"),
+                    TableColumnSetup::new("0D"),
+                    TableColumnSetup::new("0E"),
+                    TableColumnSetup::new("0F"),
+                ],
+            ) {
+                // ui.table_next_column();
+                let root_addr = addr & !0x000F;
+                let bottom = root_addr + (rows as u16) * 0xF0;
+                for row in (0..(rows * 0x10)).step_by(0x10) {
+                    let row16 = row as u16;
+                    ui.table_next_column();
+                    ui.text(format!("{:04X}", root_addr + row16));
+                    for col in 0..=0x0F {
+                        let col16 = col as u16;
+                        ui.table_next_column();
+                        ui.text(format!(
+                            "{:02X}",
+                            nes.cpu.bus.cpu_read(root_addr + row16 + col16, true)
+                        ));
+                    }
+                }
             }
-        }
-    }
+        });
 }
 
 fn draw_code(num_lines: usize, nes: &mut Nes, ui: &Ui) {
@@ -241,7 +256,7 @@ fn draw_code(num_lines: usize, nes: &mut Nes, ui: &Ui) {
 
 fn draw_ppu_buffer(nes: &mut Nes, state: &EmulationState, ui: &Ui) {
     ui.window("NES")
-        .position(PPU_SCREEN_POS, Condition::Always)
+        .position(PPU_SCREEN_POS, Condition::Appearing)
         .size(PPU_GAME_WINDOW_SIZE, Condition::Always)
         .scroll_bar(false)
         .resizable(false)
@@ -322,6 +337,101 @@ fn draw_oam(nes: &mut Nes, ui: &Ui) {
                 }
             }
         });
+}
+
+fn draw_ppu_status(nes: &mut Nes, ui: &Ui) {
+    ui.window("PPU Debug Info")
+        .position(PPU_STATUS_WINDOW_POS, Condition::Always)
+        .size(PPU_STATUS_WINDOW_SIZE, Condition::Always)
+        .resizable(PPU_RESIZEABLE)
+        .build(|| {
+            {
+                fn f(ui: &Ui, cond: u8, c: &'static str) {
+                    ui.same_line();
+                    ui.text_colored(color(cond > 0), c);
+                }
+                ui.text("Status: ");
+
+                let status = nes.get_ppu_status();
+                let unused_status = format!("{:0>5b}", status & STATUS_UNUSED_MASK);
+
+                f(ui, status & STATUS_VERTICAL_BLANK_MASK, "VB");
+                f(ui, status & STATUS_SPRT_HIT_ZERO_MASK, "HZ");
+                f(ui, status & STATUS_SPRT_OVERFLOW_MASK, "O");
+                ui.same_line();
+                ui.text_colored(debug_color::GREEN, unused_status);
+
+                ui.text("Control:");
+
+                let ctrl = nes.get_ppu_ctrl();
+                f(ui, ctrl & CTRL_NAMETABLE_X, "NX");
+                f(ui, ctrl & CTRL_NAMETABLE_Y, "NY");
+                f(ui, ctrl & CTRL_INCREMENT_MODE, "IM");
+                f(ui, ctrl & CTRL_PATTERN_SPRITE, "PS");
+                f(ui, ctrl & CTRL_PATTERN_BACKGROUND, "PB");
+                f(ui, ctrl & CTRL_SPRITE_SIZE, "SS");
+                f(ui, ctrl & CTRL_SLAVE_MODE, "SM");
+                f(ui, ctrl & CTRL_ENABLE_NMI, "NMI");
+
+                ui.text("Mask:");
+
+                let mask = nes.get_ppu_mask();
+                f(ui, mask & MASK_GRAYSCALE, "G");
+                f(ui, mask & MASK_RENDER_BACKGROUND_LEFT, "BG-L");
+                f(ui, mask & MASK_RENDER_SPRITES_LEFT, "SPR-L");
+                f(ui, mask & MASK_RENDER_BACKGROUND, "BG");
+                f(ui, mask & MASK_RENDER_SPRITES, "SPR");
+                f(ui, mask & MASK_ENHANCE_RED, "R");
+                f(ui, mask & MASK_ENHANCE_GREEN, "G");
+                f(ui, mask & MASK_ENHANCE_BLUE, "B");
+            }
+            if let Some(_t) = ui.begin_table_header(
+                "table-headers",
+                [
+                    TableColumnSetup::new("Register"),
+                    TableColumnSetup::new("Value"),
+                ],
+            ) {
+                ui.table_next_column();
+                ui.text("Scanline: ");
+
+                let sl = nes.get_ppu_scanline();
+
+                ui.table_next_column();
+                ui.text(format!("{:}", if sl == usize::MAX { 0 } else { sl }));
+
+                ui.table_next_column();
+                ui.text("Cycle: ");
+
+                ui.table_next_column();
+                ui.text(format!("{:}", nes.get_ppu_cycle()));
+
+                ui.table_next_column();
+                ui.text("Vram: ");
+
+                ui.table_next_column();
+                ui.text(format!("{:04X}", nes.get_ppu_vram()));
+
+                ui.table_next_column();
+                ui.text("Tram: ");
+
+                ui.table_next_column();
+                ui.text(format!("{:04X}", nes.get_ppu_tram()));
+
+                ui.table_next_column();
+                ui.text("Frame: ");
+
+                ui.table_next_column();
+                ui.text(format!("{:}", nes.get_ppu_frame_count()));
+            }
+        });
+}
+
+fn color(f: bool) -> [f32; 4] {
+    if f {
+        return debug_color::GREEN;
+    }
+    debug_color::RED
 }
 
 // fn draw_ppu_bg_ids(x: i32, y: i32, nes: &mut Nes) {

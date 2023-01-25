@@ -30,8 +30,8 @@ pub struct PPU {
 
     pub nmi: bool,
 
-    vram_addr: u16, // Active "pointer" address into nametable to extract background tile info
-    tram_addr: u16, // Temporary store of information to be "transferred" into "pointer" at various times
+    vram_addr: u16, // Unions are for people who hate themselves.
+    tram_addr: u16, // Unions are for people who hate themselves.
 
     fine_x: u8, // Pixel offset horizontally
 
@@ -54,6 +54,7 @@ pub struct PPU {
     bg_shifter_attrib_hi: u16,
 
     pub debug: bool,
+    clock_count: usize, /* The counter which enables writes to the control register */
 }
 
 impl PPU {
@@ -69,7 +70,7 @@ impl PPU {
             //  return valid mem
             spr_screen: [0; WIDTH * HEIGHT * COLOR_CHANNELS],
             spr_name_table: [
-                [0; WIDTH * HEIGHT * 3],
+                [0; WIDTH * HEIGHT * COLOR_CHANNELS],
                 [0; WIDTH * HEIGHT * COLOR_CHANNELS],
             ],
             spr_pattern_table: [
@@ -87,12 +88,12 @@ impl PPU {
             mask: 0,
             ctrl: 0,
             nmi: false,
-            vram_addr: 0,
-            tram_addr: 0,
+            vram_addr: 0, // Change these out for a bunch of registers. dealing with unions can eat my ass.
+            tram_addr: 0, // Change these out for a bunch of registers. dealing with unions can eat my ass.
             fine_x: 0,
             address_latch: true,
             ppu_data_buffer: 0,
-            scanline: 0,
+            scanline: usize::MAX,
             cycle: 0,
             bg_next_tile_id: 0,
             bg_next_tile_attrib: 0,
@@ -103,66 +104,61 @@ impl PPU {
             bg_shifter_attrib_lo: 0,
             bg_shifter_attrib_hi: 0,
             debug: false,
+            clock_count: 0,
         }
     }
 
     fn increment_scroll_x(&mut self) {
-        if !self.can_render() {
-            return;
-        }
-        if self.vram_addr & REG_COARSE_X == REG_COARSE_X {
-            self.vram_addr &= !REG_COARSE_X; // wipe coarse X
-            self.vram_addr ^= REG_NAMETABLE_X; // toggle table
-        } else {
-            let mut x: u16 = self.vram_addr & REG_COARSE_X;
-            x += 1;
-            self.vram_addr &= !REG_COARSE_X;
-            self.vram_addr |= x;
+        if self.can_render() {
+            if (self.vram_addr & REG_COARSE_X) == REG_COARSE_X {
+                self.vram_addr &= !REG_COARSE_X; // wipe coarse X
+                self.vram_addr ^= REG_NAMETABLE_X; // toggle table
+            } else {
+                let mut x: u16 = self.vram_addr & REG_COARSE_X;
+                x += 1;
+                self.vram_addr &= !REG_COARSE_X;
+                self.vram_addr |= x;
+            }
         }
     }
 
     fn increment_scroll_y(&mut self) {
-        if !self.can_render() {
-            return;
-        }
-        let mut fine_y = (self.vram_addr & REG_FINE_Y) >> 12;
-        if fine_y < 7 {
-            // we can just increment fine y once and leave
-            fine_y += 1;
-            self.vram_addr &= !REG_FINE_Y;
-            self.vram_addr |= (fine_y << 12)
-        } else {
-            self.vram_addr &= !REG_FINE_Y;
-
+        if self.can_render() {
+            let mut fine_y = (self.vram_addr & REG_FINE_Y) >> 12;
             let mut coarse_y = (self.vram_addr & REG_COARSE_Y) >> 5;
-            self.vram_addr &= !REG_COARSE_Y;
-            //  do we need to swap vertical nametables?
-            if let 29 = coarse_y {
-                // yes, reset coarse y
-                self.vram_addr ^= REG_NAMETABLE_Y;
+            self.vram_addr &= !REG_FINE_Y;
+            
+            if fine_y < 7 {
+                fine_y += 1;
+                self.vram_addr |= (fine_y << 12)
             } else {
-                coarse_y += 1;
-                self.vram_addr |= coarse_y << 5;
+                if coarse_y == 29 {
+                    self.vram_addr &= !REG_COARSE_Y;
+                    self.vram_addr ^= REG_NAMETABLE_Y;
+                } /*  else if coarse_y == 31 {
+                    self.vram_addr &= !REG_COARSE_Y;
+                } */ else {
+                    coarse_y += 1;
+                    self.vram_addr |= coarse_y << 5;
+                }
             }
         }
     }
 
     fn transfer_address_x(&mut self) {
-        if !self.can_render() {
-            return;
+        if self.can_render() {
+            let mask = REG_NAMETABLE_X | REG_COARSE_X;
+            self.vram_addr &= !mask;
+            self.vram_addr |= self.tram_addr & mask;
         }
-        let mask = REG_NAMETABLE_X | REG_COARSE_X;
-        self.vram_addr &= !mask;
-        self.vram_addr |= self.tram_addr & mask;
     }
 
     fn transfer_address_y(&mut self) {
-        if !self.can_render() {
-            return;
+        if self.can_render() {
+            let mask = REG_FINE_Y | REG_NAMETABLE_Y | REG_COARSE_Y;
+            self.vram_addr &= !mask;
+            self.vram_addr |= self.tram_addr & mask;
         }
-        let mask = REG_FINE_Y | REG_NAMETABLE_Y | REG_COARSE_Y;
-        self.vram_addr &= !mask;
-        self.vram_addr |= self.tram_addr & mask;
     }
 
     fn load_background_shifters(&mut self) {
@@ -185,13 +181,12 @@ impl PPU {
     }
 
     fn update_shifters(&mut self) {
-        if !self.can_render() {
-            return;
+        if self.mask & MASK_RENDER_BACKGROUND > 0 {
+            self.bg_shifter_pattern_lo <<= 1;
+            self.bg_shifter_pattern_hi <<= 1;
+            self.bg_shifter_attrib_lo <<= 1;
+            self.bg_shifter_attrib_hi <<= 1;
         }
-        self.bg_shifter_pattern_lo <<= 1;
-        self.bg_shifter_pattern_hi <<= 1;
-        self.bg_shifter_attrib_lo <<= 1;
-        self.bg_shifter_attrib_hi <<= 1;
     }
 
     fn can_render(&self) -> bool {
@@ -202,93 +197,120 @@ impl PPU {
     }
 
     pub fn clock(&mut self) {
-        match self.scanline {
-            0..=240 => {
-                match (self.scanline, self.cycle) {
-                    (262, 1) => self.status &= !STATUS_VERTICAL_BLANK_MASK,
-                    (0, 0) => self.cycle = 1,
-                    (_, 2..=257 | 321..=337) => {
-                        self.update_shifters();
-                        match (self.cycle - 1) % 8 {
-                            0 => {
-                                self.load_background_shifters();
-                                self.bg_next_tile_id =
-                                    self.ppu_read(0x2000 | (self.vram_addr & 0x0FFF));
-                            }
-                            2 => {
-                                let a: u16 = self.vram_addr & REG_NAMETABLE_Y << 11;
-                                let b: u16 = self.vram_addr & REG_NAMETABLE_X << 10;
-                                let c: u16 = ((self.vram_addr & REG_COARSE_Y) >> 7) << 3;
-                                let d: u16 = self.vram_addr & REG_COARSE_X >> 2;
-                                self.bg_next_tile_attrib = self.ppu_read(0x23C0 | a | b | c | d);
+        if self.scanline != usize::MAX && self.scanline < HEIGHT {
+            if self.scanline == 0 && self.cycle == 0 {
+                self.cycle = 1;
+            }
 
-                                if ((self.vram_addr & REG_COARSE_Y) >> 5) & 0x02 > 0 {
-                                    self.bg_next_tile_attrib >>= 4
-                                }
-                                if (self.vram_addr & REG_COARSE_X) & 0x02 > 0 {
-                                    self.bg_next_tile_attrib >>= 2
-                                }
-                                self.bg_next_tile_attrib &= 0x03;
-                                // 👀 pls
-                            }
-                            4 => {
-                                let a: u16 = ((self.ctrl & CTRL_PATTERN_BACKGROUND) as u16) << 8;
-                                let b: u16 = (self.bg_next_tile_id as u16) << 4;
-                                let c: u16 = (self.vram_addr & REG_FINE_Y) >> 12;
-                                self.bg_next_tile_lsb = self.ppu_read(a + b + c + 0);
-                            }
-                            6 => {
-                                let a: u16 = ((self.ctrl & CTRL_PATTERN_BACKGROUND) as u16) << 8;
-                                let b: u16 = (self.bg_next_tile_id as u16) << 4;
-                                let c: u16 = (self.vram_addr & REG_FINE_Y) >> 12;
-                                self.bg_next_tile_msb = self.ppu_read(a + b + c + 8);
-                            }
-                            7 => self.increment_scroll_x(),
-                            _ => {}
-                        }
-                    }
-                    (_, 256) => self.increment_scroll_y(),
-                    (_, 257) => {
+            if self.scanline == usize::MAX && self.cycle == 1 {
+                self.status &= !STATUS_VERTICAL_BLANK_MASK;
+                self.status &= !STATUS_SPRT_OVERFLOW_MASK;
+                self.status &= !STATUS_SPRT_HIT_ZERO_MASK;
+                for i in 0..8 {
+                    // clear shifters
+                }
+            }
+
+            if (2..258).contains(&self.cycle) || (321..338).contains(&self.cycle) {
+                self.update_shifters();
+                match (self.cycle - 1) % 8 {
+                    0 => {
                         self.load_background_shifters();
-                        self.transfer_address_x()
+                        self.bg_next_tile_id =
+                            self.ppu_read(0x2000 | (self.vram_addr & 0x0FFF));
                     }
-                    (_, 338 | 340) => {
-                        self.bg_next_tile_id = self.ppu_read(0x2000 | (self.vram_addr & 0x0FFF))
+                    2 => {
+                        let a: u16 = self.vram_addr & REG_NAMETABLE_Y;
+                        let b: u16 = self.vram_addr & REG_NAMETABLE_X;
+                        let c: u16 = ((self.vram_addr & REG_COARSE_Y) >> 7) << 3;
+                        let d: u16 = self.vram_addr & REG_COARSE_X >> 2;
+                        self.bg_next_tile_attrib = self.ppu_read(0x23C0 | a | b | c | d);
+
+                        if ((self.vram_addr & REG_COARSE_Y) >> 5) & 0x02 > 0 {
+                            self.bg_next_tile_attrib >>= 4
+                        }
+                        if (self.vram_addr & REG_COARSE_X) & 0x02 > 0 {
+                            self.bg_next_tile_attrib >>= 2
+                        }
+                        self.bg_next_tile_attrib &= 0x03;
+                        // 👀 pls
                     }
-                    (262, 280 | 305) => self.transfer_address_y(),
+                    4 => {
+                        let a: u16 = ((self.ctrl & CTRL_PATTERN_BACKGROUND) as u16) << 8;
+                        let b: u16 = (self.bg_next_tile_id as u16) << 4;
+                        let c: u16 = (self.vram_addr & REG_FINE_Y) >> 12;
+                        self.bg_next_tile_lsb = self.ppu_read(a + b + c + 0);
+                    }
+                    6 => {
+                        let a: u16 = ((self.ctrl & CTRL_PATTERN_BACKGROUND) as u16) << 8;
+                        let b: u16 = (self.bg_next_tile_id as u16) << 4;
+                        let c: u16 = (self.vram_addr & REG_FINE_Y) >> 12;
+                        self.bg_next_tile_msb = self.ppu_read(a + b + c + 8);
+                    }
+                    7 => self.increment_scroll_x(),
                     _ => {}
                 }
             }
-            241 => { /* Verbose "we're not doing anything" */ }
-            242..=262 => {
+
+            if self.cycle == 256 { self.increment_scroll_y(); }
+
+            if self.cycle == 257 {
+                self.load_background_shifters();
+                self.transfer_address_x()
+            }
+            
+            if self.cycle == 338 || self.cycle == 338 {
+                self.bg_next_tile_id = self.ppu_read(0x2000 | (self.vram_addr & 0x0FFF))
+            }
+
+            if self.scanline == usize::MAX && (280..305).contains(&self.cycle) {
+                self.transfer_address_y();
+            }
+
+            if self.cycle == 257 && self.scanline != usize::MAX {
+                // Sprite shits
+            }
+
+            if self.cycle == 340 {
+                // Sprite shit
+            }
+
+        }
+        if self.scanline == 240 { }
+
+        if self.scanline == 241 && self.cycle == 1 {
+            if self.clock_count > PPU_CTRL_IGNORE_CYCLES {
                 self.status |= STATUS_VERTICAL_BLANK_MASK;
                 if self.ctrl & CTRL_ENABLE_NMI > 0 {
                     self.nmi = true;
                 }
             }
-            _ => {}
         }
+
 
         let mut bg_pixel: u8 = 0x00;
         let mut bg_palette: u8 = 0x00;
 
         if self.mask & MASK_RENDER_BACKGROUND > 0 {
             let bit_mux = 0x8000 >> self.fine_x;
-            let p0_pixel: u8 = (self.bg_shifter_pattern_lo & bit_mux) as u8;
-            let p1_pixel: u8 = (self.bg_shifter_pattern_hi & bit_mux) as u8;
+            let p0_pixel: u8 = ((self.bg_shifter_pattern_lo & bit_mux) > 0) as u8;
+            let p1_pixel: u8 = ((self.bg_shifter_pattern_hi & bit_mux) > 0) as u8;
 
             bg_pixel = (p1_pixel << 1) | p0_pixel;
 
-            let bg_pal0: u8 = (self.bg_shifter_attrib_lo & bit_mux) as u8;
-            let bg_pal1: u8 = (self.bg_shifter_attrib_hi & bit_mux) as u8;
+            let bg_pal0: u8 = ((self.bg_shifter_attrib_lo & bit_mux) > 0) as u8;
+            let bg_pal1: u8 = ((self.bg_shifter_attrib_hi & bit_mux) > 0) as u8;
             bg_palette = (bg_pal1 << 1) | bg_pal0;
+
+            // println!("bg pal: {:02X} bg pix: {:02X} bit_mux: {:04X}", bg_palette, bg_pixel, bit_mux);
+            // println!("lo: {:04X} | hi: {:04X}",self.bg_shifter_pattern_lo, self.bg_shifter_pattern_hi);
         }
 
         let color = self.get_color_from_palette_ram(bg_palette, bg_pixel);
 
-        if (0..=HEIGHT).contains(&self.scanline) && (0..=WIDTH).contains(&self.cycle) {
+        if (0..HEIGHT).contains(&self.scanline) && (0..WIDTH).contains(&self.cycle) {
             write_pixel_to_output(
-                (self.scanline * HEIGHT + self.cycle - 1) * COLOR_CHANNELS,
+                (self.scanline * WIDTH + self.cycle) * COLOR_CHANNELS,
                 &mut self.spr_screen,
                 color,
             );
@@ -297,13 +319,17 @@ impl PPU {
         self.cycle += 1;
         if self.cycle >= 341 {
             self.cycle = 0;
-            self.scanline += 1;
-            if self.scanline >= 262 {
-                self.scanline = 0;
+
+            let (r, _) = self.scanline.overflowing_add(1);
+            self.scanline = r;
+            if self.scanline >= 261 {
+                self.scanline = usize::MAX;
                 self.frame_complete = true;
                 self.frame_complete_count += 1;
             }
         }
+
+        self.clock_count += 1;
     }
 
     // Plaase ignore the cpu read/write sections, the 6502 and 2c02 can eat my shorts.
@@ -384,6 +410,9 @@ impl PPU {
     }
 
     pub fn cpu_write(&mut self, addr: u16, data: u8) {
+        if self.clock_count < PPU_CTRL_IGNORE_CYCLES {
+            return;
+        }
         match addr {
             0x0000 => {
                 self.ctrl = data;
@@ -424,7 +453,7 @@ impl PPU {
                 // println!("vram: {:04X} -> {:02X}", self.vram_addr, data);
                 self.ppu_write(self.vram_addr, data);
                 self.vram_addr += if self.ctrl & CTRL_INCREMENT_MODE > 0 {
-                    32
+                    0x20
                 } else {
                     1
                 };
@@ -526,12 +555,24 @@ impl PPU {
     pub fn get_name_table(&self, index: usize) -> SprScreenT {
         self.spr_name_table[index]
     }
+    pub fn debug_get_tram_addr(&self) -> u16 {
+        self.tram_addr
+    }
+    pub fn debug_get_vram_addr(&self) -> u16 {
+        self.vram_addr
+    }
+    pub fn debug_get_ctrl(&self) -> u8 {
+        self.ctrl
+    }
+    pub fn debug_get_mask(&self) -> u8 {
+        self.mask
+    }
 
     pub fn reset(&mut self) {
         self.fine_x = 0x00;
         self.address_latch = true;
         self.ppu_data_buffer = 0x00;
-        self.scanline = 0;
+        self.scanline = usize::MAX;
         self.cycle = 0;
         self.bg_next_tile_id = 0x00;
         self.bg_next_tile_attrib = 0x00;
@@ -545,13 +586,16 @@ impl PPU {
         self.mask = 0x00;
         self.ctrl = 0x00;
         self.vram_addr = 0x0000;
-        self.tram_addr = 0x0000
+        self.tram_addr = 0x0000;
+        self.clock_count = 0;
+        self.frame_complete_count = 0;
+        self.spr_screen = [0; WIDTH * HEIGHT * COLOR_CHANNELS];
     }
 
     pub fn get_pattern_table(&mut self, index: usize, palette_id: u8) -> SprPatternTableUnitT {
-        for y in 0..0x000F {
-            for x in 0..0x000F {
-                let offset = y * 256 + x * 16;
+        for y_tile in 0..16 {
+            for x_tile in 0..16 {
+                let offset = y_tile * 256 + x_tile * 16;
                 for r in 0..8 {
                     let mut tile_lsb: u8 = self.ppu_read((index as u16) * 0x1000 + offset + r);
                     let mut tile_msb: u8 = self.ppu_read((index as u16) * 0x1000 + offset + r + 8);
@@ -563,9 +607,9 @@ impl PPU {
                         // println!("Setting pattern_table pixel x:{} y:{} -> {}", (x * 8 + (7 - c)), (y * 8 + r), self.get_color_from_palette_ram(palette_id, pixel));
 
                         let color = self.get_color_from_palette_ram(palette_id, pixel);
-                        let x_pos: usize = ((x as usize) * 8 + (7 - (c as usize)));
+                        let x_pos: usize = ((x_tile as usize) * 8 + (7 - (c as usize)));
                         let y_pos: usize =
-                            ((y as usize) * 8 + (r as usize)) * SPR_PATTERN_TABLE_SIZE;
+                            ((y_tile as usize) * 8 + (r as usize)) * SPR_PATTERN_TABLE_SIZE;
                         let pos = (y_pos + x_pos) * COLOR_CHANNELS;
                         write_pixel_to_output(pos, &mut self.spr_pattern_table[index], color);
                     }
