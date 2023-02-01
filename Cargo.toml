@@ -18,6 +18,8 @@ imgui-winit-support = "*"
 rand = "*"
 imgui = { version = "0.10", features = ["tables-api"] }
 anyhow = "*"
+num-traits = "*"
+tqdm = "0.4.3"
 
 
 [profile.release]

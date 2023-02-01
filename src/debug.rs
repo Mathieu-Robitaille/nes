@@ -395,10 +395,8 @@ fn draw_ppu_status(nes: &mut Nes, ui: &Ui) {
                 ui.table_next_column();
                 ui.text("Scanline: ");
 
-                let sl = nes.get_ppu_scanline();
-
                 ui.table_next_column();
-                ui.text(format!("{:}", if sl == usize::MAX { 0 } else { sl }));
+                ui.text(format!("{:}", nes.get_ppu_scanline()));
 
                 ui.table_next_column();
                 ui.text("Cycle: ");

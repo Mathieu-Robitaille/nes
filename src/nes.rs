@@ -1,5 +1,5 @@
 use crate::bus::Bus;
-use crate::cartridge::{load_cart, Rom};
+use crate::cartridge::{Cartridge, Rom};
 use crate::consts::{
     emulation_consts::EMU_DEBUG,
     nes_consts::CART,
@@ -33,7 +33,7 @@ pub struct Nes {
 
 impl Nes {
     pub fn new() -> Self {
-        match load_cart(CART) {
+        match Cartridge::from(CART) {
             Ok(cart) => {
                 let cart_rc = Rc::new(RefCell::new(cart));
                 let bus = Bus::new(cart_rc.clone());

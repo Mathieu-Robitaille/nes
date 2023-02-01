@@ -73,7 +73,6 @@ impl Bus {
         if (0x0000..=0x1FFF).contains(&addr) {
             self.ram[(addr & 0x07FF) as usize] = data;
         } else if (0x2000..=0x3FFF).contains(&addr) {
-            // This can borrow_mut the cart later.
             self.ppu.cpu_write(addr & 0x0007, data)
         } else if addr == 0x4014 {
             self.dma_page = data;

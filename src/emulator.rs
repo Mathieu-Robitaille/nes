@@ -2,9 +2,11 @@ use crate::consts::{
     emulation_consts::*,
     emulation_consts::{CLIENT_FORMAT, COLOR_CHANNELS},
     nes_consts::CART,
-    ppu_consts::SPR_PATTERN_TABLE_SIZE,
+    ppu_consts::{SPR_PATTERN_TABLE_SIZE, NUM_SCANLINES_RENDERED, NUM_CYCLES_PER_SCANLINE},
     screen_consts::{HEIGHT, WIDTH},
 };
+use crate::ppu::generate_dummy_screen;
+
 use crate::Nes;
 
 use glium::{
@@ -80,7 +82,7 @@ impl EmulationState {
     {
         if self.nes_texture_id.is_none() {
             // Generate dummy texture
-            let texture_id = generate_dummy_texture(WIDTH, HEIGHT, gl_ctx, textures)?;
+            let texture_id = generate_dummy_texture(NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, gl_ctx, textures)?;
             self.nes_texture_id = Some(texture_id);
         }
 
@@ -173,7 +175,7 @@ impl EmulationState {
         F: Facade,
     {
         let bytes = nes.cpu.bus.ppu.get_screen().to_vec();
-        let texture = convert_data_to_texture(WIDTH, HEIGHT, bytes, gl_ctx, textures)?;
+        let texture = convert_data_to_texture(NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, bytes, gl_ctx, textures)?;
         if let Some(tex) = textures.get_mut(texture_id) {
             *tex = texture;
         }

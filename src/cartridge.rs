@@ -35,6 +35,17 @@ struct CartHeadder {
 }
 
 impl Cartridge {
+    pub fn from(pick: Rom) -> io::Result<Cartridge> {
+        let cart_name = match pick {
+            // https://www.nesdev.org/wiki/Emulator_tests
+            Rom::CPUTest => "test-roms/cpu/nestest.nes".to_string(),
+            Rom::PpuColorTest => "test-roms/ppu/color_test.nes".to_string(),
+            Rom::Mario => "test-roms/carts/super_mario.nes".to_string(),
+            Rom::DonkeyKong => "test-roms/carts/Donkey Kong (World) (Rev A).nes".to_string(),
+        };
+        Ok(Cartridge::new(cart_name)?)
+    }
+
     pub fn new(file_name: String) -> Result<Self, io::Error> {
         let mut f: File = File::open(file_name)?;
         let mut headder: CartHeadder = unsafe { mem::zeroed() };
@@ -152,13 +163,3 @@ pub enum Rom {
     DonkeyKong,
 }
 
-pub fn load_cart(pick: Rom) -> io::Result<Cartridge> {
-    let cart_name = match pick {
-        // https://www.nesdev.org/wiki/Emulator_tests
-        Rom::CPUTest => "test-roms/cpu/nestest.nes".to_string(),
-        Rom::PpuColorTest => "test-roms/ppu/color_test.nes".to_string(),
-        Rom::Mario => "test-roms/carts/super_mario.nes".to_string(),
-        Rom::DonkeyKong => "test-roms/carts/Donkey Kong (World) (Rev A).nes".to_string(),
-    };
-    Ok(Cartridge::new(cart_name)?)
-}

@@ -164,8 +164,7 @@ impl Cpu6502 {
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
 
-            let (r, _) = self.pc.overflowing_add(1);
-            self.pc = r;
+            self.pc = self.pc.wrapping_add(1); // fix
 
             let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
 
@@ -198,9 +197,7 @@ impl Cpu6502 {
         self.x_reg = 0;
         self.y_reg = 0;
 
-        let (r, _) = self.stack_pointer.overflowing_sub(3);
-
-        self.stack_pointer = r;
+        self.stack_pointer = self.stack_pointer.wrapping_sub(3);
 
         self.status = 0x00 | CPUFlags::U;
 
@@ -219,16 +216,14 @@ impl Cpu6502 {
             return;
         }
         self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.pc);
-        let (r, _) = self.stack_pointer.overflowing_sub(2);
-        self.stack_pointer = r;
+        self.stack_pointer = self.stack_pointer.wrapping_sub(2);
 
         self.set_flag(CPUFlags::B, false);
         self.set_flag(CPUFlags::U, true);
         self.set_flag(CPUFlags::I, true);
 
         self.write_bus(0x0100 + (self.stack_pointer as u16), self.status);
-        let (r, _) = self.stack_pointer.overflowing_sub(1);
-        self.stack_pointer = r;
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
 
         self.addr_abs = 0xFFFE;
         self.pc = self.read_bus_two_bytes(self.addr_abs);
@@ -237,16 +232,14 @@ impl Cpu6502 {
 
     pub fn nmi(&mut self) {
         self.write_bus_two_bytes(0x0100 + (self.stack_pointer as u16), self.pc);
-        let (r, _) = self.stack_pointer.overflowing_sub(2);
-        self.stack_pointer = r;
+        self.stack_pointer = self.stack_pointer.wrapping_sub(2);
 
         self.set_flag(CPUFlags::B, false);
         self.set_flag(CPUFlags::U, true);
         self.set_flag(CPUFlags::I, true);
 
         self.write_bus(0x0100 + (self.stack_pointer as u16), self.status);
-        let (r, _) = self.stack_pointer.overflowing_sub(1);
-        self.stack_pointer = r;
+        self.stack_pointer = self.stack_pointer.wrapping_sub(1);
 
         self.addr_abs = 0xFFFA;
         self.pc = self.read_bus_two_bytes(self.addr_abs);
