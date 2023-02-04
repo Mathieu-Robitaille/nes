@@ -2,7 +2,7 @@ use crate::consts::{
     emulation_consts::*,
     emulation_consts::{CLIENT_FORMAT, COLOR_CHANNELS},
     nes_consts::CART,
-    ppu_consts::{SPR_PATTERN_TABLE_SIZE, NUM_SCANLINES_RENDERED, NUM_CYCLES_PER_SCANLINE},
+    ppu_consts::{NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, SPR_PATTERN_TABLE_SIZE},
     screen_consts::{HEIGHT, WIDTH},
 };
 use crate::ppu::generate_dummy_screen;
@@ -82,7 +82,12 @@ impl EmulationState {
     {
         if self.nes_texture_id.is_none() {
             // Generate dummy texture
-            let texture_id = generate_dummy_texture(NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, gl_ctx, textures)?;
+            let texture_id = generate_dummy_texture(
+                NUM_CYCLES_PER_SCANLINE,
+                NUM_SCANLINES_RENDERED,
+                gl_ctx,
+                textures,
+            )?;
             self.nes_texture_id = Some(texture_id);
         }
 
@@ -126,6 +131,9 @@ impl EmulationState {
                 self.frame_sync = FrameSync::Stop;
             }
             FrameSync::OneCycle => {
+                nes.clock();
+            }
+            FrameSync::StepOneCycle => {
                 nes.clock();
                 self.frame_sync = FrameSync::Stop;
             }
@@ -175,7 +183,13 @@ impl EmulationState {
         F: Facade,
     {
         let bytes = nes.cpu.bus.ppu.get_screen().to_vec();
-        let texture = convert_data_to_texture(NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, bytes, gl_ctx, textures)?;
+        let texture = convert_data_to_texture(
+            NUM_CYCLES_PER_SCANLINE,
+            NUM_SCANLINES_RENDERED,
+            bytes,
+            gl_ctx,
+            textures,
+        )?;
         if let Some(tex) = textures.get_mut(texture_id) {
             *tex = texture;
         }
@@ -220,16 +234,17 @@ impl EmulationState {
 }
 
 pub enum FrameSync {
-    Run,             /* Hold thread until frame is complete */
+    Run,              /* Hold thread until frame is complete */
     DisplayAvailable, /* Display whatever is available in the ppu */
     DisplayPrevious,  /* redraw the previous frame */
     RedrawAvailable,  /* Skip redraw until frame is available (?) */
-    OneCycle,         /* Run the bus clock once */
+    StepOneCycle,     /* Run the bus clock once, Then stop */
+    OneCycle,         /* Run the bus clock once, Then draw the output */
     OneInstruction,   /* Run one instruction then stop */
     OneScanline,      /* Only draw one scanline */
-    OneFrame,         /* Only draw one frame, Control Flow should drop thihs to Stop after the frame */
-    XCycles,          /* Run for x cycles */
-    PCWatch,          /* Run until the program counter hits this addr */
+    OneFrame, /* Only draw one frame, Control Flow should drop thihs to Stop after the frame */
+    XCycles,  /* Run for x cycles */
+    PCWatch,  /* Run until the program counter hits this addr */
     Stop,     /* Do nothing */
     Reset,
 }

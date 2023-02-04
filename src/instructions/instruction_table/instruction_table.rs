@@ -5,15 +5,20 @@ use crate::instructions::instruction::{AddressingMode, Instruction};
 use crate::instructions::instruction_functions::*;
 use lazy_static::lazy_static;
 
+///
+/// I'm still workign on tuning the opcodes, I believe this is at the point where the official codes are valid
+/// The unoficial codes need to be done now.
+///
+
 lazy_static! {
     // BY THE POWER OF AUTS
     pub static ref INSTRUCTIONS_ARR: [Instruction; 0xFF +1] = {
         let mut m: [Instruction; 0xFF +1] = [Default::default(); 0xFF +1];
         m[0x00] = Instruction { name: "BRK", clock_cycles: 7, addr_mode: AddressingMode::IMP, function: BRK};
         m[0x01] = Instruction { name: "ORA", clock_cycles: 6, addr_mode: AddressingMode::IZX, function: ORA};
-        m[0x02] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX};
-        m[0x03] = Instruction { name: "???", clock_cycles: 8, addr_mode: AddressingMode::IMP, function: XXX};
-        m[0x04] = Instruction { name: "???", clock_cycles: 3, addr_mode: AddressingMode::IMP, function: NOP};
+        m[0x02] = Instruction { name: "???", clock_cycles: 2, addr_mode: AddressingMode::IMP, function: XXX}; // Unofficial
+        m[0x03] = Instruction { name: "SLO", clock_cycles: 8, addr_mode: AddressingMode::IZX, function: XXX}; // Unofficial
+        m[0x04] = Instruction { name: "NOP", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: NOP}; // Unofficial
         m[0x05] = Instruction { name: "ORA", clock_cycles: 3, addr_mode: AddressingMode::ZP0, function: ORA};
         m[0x06] = Instruction { name: "ASL", clock_cycles: 5, addr_mode: AddressingMode::ZP0, function: ASL};
         m[0x07] = Instruction { name: "???", clock_cycles: 5, addr_mode: AddressingMode::IMP, function: XXX};

@@ -63,10 +63,6 @@ impl Bus {
     }
 
     pub(crate) fn cpu_write(&mut self, addr: u16, data: u8) {
-        // if (0x0000..=0x1FFF).contains(&addr) {
-        //     println!("Writing to ppu {addr:04X?}");
-        // }
-
         if let Ok(_) = self.cart.borrow_mut().cpu_write(addr, data) {
             return;
         }

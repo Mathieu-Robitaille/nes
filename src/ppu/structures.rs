@@ -1,9 +1,8 @@
-
 use crate::consts::ppu_consts::*;
 
 use num_traits::{FromPrimitive, PrimInt};
-use std::ops::{AddAssign, SubAssign};
 use std::marker::PhantomData;
+use std::ops::{AddAssign, SubAssign};
 
 #[derive(Debug, Default, Clone)]
 pub struct Register<T>
@@ -12,7 +11,6 @@ where
 {
     register: T,
     mask: T,
-    size: usize,       // How many bits wide is this register
     left_shift: usize, // Where does this lie?
     phantom: PhantomData<T>,
 }
@@ -22,16 +20,14 @@ where
     T: PrimInt + FromPrimitive + AddAssign + SubAssign,
 {
     fn new(data: T, mask: T) -> Self {
-        let size: usize = mask.count_ones() as usize;
         let left_shift: usize = mask.trailing_zeros() as usize;
 
         let register: T = mask & data;
         Register {
             register,
             mask,
-            size,
             left_shift,
-            phantom: PhantomData
+            phantom: PhantomData,
         }
     }
     pub fn get(&self) -> T {
@@ -51,25 +47,28 @@ where
     }
 
     pub fn flip_bits(&mut self) {
-        self.register = (!self.register & self.mask);
+        self.register = !self.register & self.mask;
     }
 
     pub fn zero(&mut self) {
         self.register = T::zero();
     }
+    
     pub fn one(&mut self) {
         self.register = T::one() << self.left_shift;
     }
 
     pub fn increment(&mut self) {
-        self.register += T::one();
+        let r = self.get_as_value() + T::one();
+        self.set_with_unshifted(r);
     }
     pub fn decrement(&mut self) {
-        self.register -= T::one();
+        let r = self.get_as_value() - T::one();
+        self.set_with_unshifted(r);
     }
 }
 
-impl<T> Into<bool> for Register<T> 
+impl<T> Into<bool> for Register<T>
 where
     T: PrimInt + FromPrimitive,
 {
@@ -78,7 +77,7 @@ where
     }
 }
 
-impl<T> std::cmp::PartialEq<T> for Register<T> 
+impl<T> std::cmp::PartialEq<T> for Register<T>
 where
     T: PrimInt + FromPrimitive + AddAssign + SubAssign,
 {
@@ -87,13 +86,10 @@ where
     }
 }
 
-
-
-
 ///
 /// Replacement register structs
 /// I'm using these as a replacement for bitfields
-/// 
+///
 
 #[derive(Debug, Default, Clone)]
 pub struct StatusRegister {
@@ -116,10 +112,10 @@ impl From<u8> for StatusRegister {
 
 impl StatusRegister {
     pub fn get_register(&self) -> u8 {
-        self.unused.get() 
-        | self.sprite_overflow.get() 
-        | self.sprite_zero_hit.get() 
-        | self.vertical_blank.get() 
+        self.unused.get()
+            | self.sprite_overflow.get()
+            | self.sprite_zero_hit.get()
+            | self.vertical_blank.get()
     }
 
     pub fn set_register(&mut self, new: u8) {
@@ -159,14 +155,14 @@ impl From<u8> for ControlRegister {
 
 impl ControlRegister {
     pub fn get_register(&self) -> u8 {
-        self.nametable_x.get() 
-        | self.nametable_y.get() 
-        | self.increment_mode.get() 
-        | self.pattern_sprite.get() 
-        | self.pattern_background.get() 
-        | self.sprite_size.get() 
-        | self.slave_mode.get() 
-        | self.enable_nmi.get() 
+        self.nametable_x.get()
+            | self.nametable_y.get()
+            | self.increment_mode.get()
+            | self.pattern_sprite.get()
+            | self.pattern_background.get()
+            | self.sprite_size.get()
+            | self.slave_mode.get()
+            | self.enable_nmi.get()
     }
 
     pub fn set_register(&mut self, new: u8) {
@@ -210,14 +206,14 @@ impl From<u8> for MaskRegister {
 
 impl MaskRegister {
     pub fn get_register(&self) -> u8 {
-        self.grayscale.get() 
-        | self.render_background_left.get() 
-        | self.render_sprites_left.get() 
-        | self.render_background.get() 
-        | self.render_sprites.get() 
-        | self.enhance_red.get() 
-        | self.enhance_green.get() 
-        | self.enhance_blue.get() 
+        self.grayscale.get()
+            | self.render_background_left.get()
+            | self.render_sprites_left.get()
+            | self.render_background.get()
+            | self.render_sprites.get()
+            | self.enhance_red.get()
+            | self.enhance_green.get()
+            | self.enhance_blue.get()
     }
 
     pub fn set_register(&mut self, new: u8) {
@@ -257,12 +253,12 @@ impl From<u16> for VramRegister {
 
 impl VramRegister {
     pub fn get_register(&self) -> u16 {
-        self.coarse_x.get() 
-        | self.coarse_y.get() 
-        | self.nametable_x.get() 
-        | self.nametable_y.get() 
-        | self.fine_y.get() 
-        | self.unused.get() 
+        self.coarse_x.get()
+            | self.coarse_y.get()
+            | self.nametable_x.get()
+            | self.nametable_y.get()
+            | self.fine_y.get()
+            | self.unused.get()
     }
 
     pub fn set_register(&mut self, new: u16) {
@@ -275,3 +271,16 @@ impl VramRegister {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ObjectAttributeEntry {
+    pub y: u8,
+    pub id: u8,
+    pub attribute: u8,
+    pub x: u8,
+}
+
+impl ObjectAttributeEntry {}
+
+#[derive(Debug, Default, Clone, Copy)]
+/// R G B
+pub struct Pixel(pub u8, pub u8, pub u8);

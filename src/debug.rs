@@ -1,23 +1,15 @@
-use crate::consts::{debug_consts::*, emulation_consts::EMU_DEBUG, ppu_consts::*};
+use crate::consts::{
+    debug_consts::*,
+    emulation_consts::{CPU_DEBUG, EMU_DEBUG},
+    ppu_consts::*,
+};
 use crate::cpu::CPUFlags;
 use crate::emulator::{EmulationState, FrameSync};
 use crate::nes::Nes;
 
-use anyhow;
-use glium::glutin;
-use glium::glutin::event::{Event, WindowEvent};
-use glium::glutin::event_loop::{ControlFlow, EventLoop};
-use glium::glutin::window::WindowBuilder;
 use imgui::*;
-use imgui::{Context, FontConfig, FontGlyphRanges, FontSource, Ui};
-use imgui_glium_renderer::Renderer;
-use imgui_winit_support::{HiDpiMode, WinitPlatform};
-use rand::Rng;
-use std::borrow::Cow;
-use std::error::Error;
-use std::io::Cursor;
-use std::path::Path;
-use std::rc::Rc;
+
+
 use std::time::Instant;
 
 ///
@@ -31,13 +23,22 @@ pub fn draw_debug(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
     draw_ppu_tables(nes, state, ui);
     emulation_control(nes, state, ui);
     draw_ppu_status(nes, ui);
+
+    if PPU_NAME_TABLE_WINDOW_ENABLE {
+        draw_ppu_name_tables(nes, ui);
+    }
+
     // draw_oam(nes, ui);
     // draw_ram("Stack".to_string(), 16, 0x100, nes, ui);
+    if CPU_DEBUG {
+        draw_ram("Debug Results".to_string(), 16, 0x0000, nes, ui);
+    }
+
     draw_code(10, nes, ui);
 }
 
 fn emulation_control(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
-    ui.window("EAT ASS.")
+    ui.window("Emulation Control.")
         .position(EMULATION_CONTROLS_POS, Condition::Appearing)
         .build(|| {
             let mut cycles: String = String::new();
@@ -47,22 +48,41 @@ fn emulation_control(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
                 1f32 / state.last_frame_time.elapsed().as_secs_f32()
             ));
             state.last_frame_time = Instant::now();
-            if ui.button("R WE GAYMEN?!") {
+
+            ui.separator();
+            ui.text("Run without stopping.");
+            if ui.button("Normal") {
                 state.frame_sync = FrameSync::Run;
             };
-            if ui.button("Run one frame.") {
-                state.frame_sync = FrameSync::OneFrame;
-            };
-            if ui.button("Run one cycle.") {
+            ui.same_line();
+            if ui.button("Clock cycle") {
                 state.frame_sync = FrameSync::OneCycle;
             };
-            if ui.button("Run one instruction.") {
-                state.frame_sync = FrameSync::OneInstruction;
-            };
-            if ui.button("Run one scanline.") {
-                state.frame_sync = FrameSync::OneScanline;
+            ui.same_line();
+            if ui.button("Scanline") {
+                // state.frame_sync = FrameSync::OneCycle;
             };
 
+            ui.separator();
+            ui.text("Run then stop.");
+            if ui.button("Cycle") {
+                state.frame_sync = FrameSync::StepOneCycle;
+            };
+            ui.same_line();
+            if ui.button("Instruction") {
+                state.frame_sync = FrameSync::OneInstruction;
+            };
+            ui.same_line();
+            if ui.button("Scanline") {
+                state.frame_sync = FrameSync::OneScanline;
+            };
+            ui.same_line();
+            if ui.button("Frame") {
+                state.frame_sync = FrameSync::OneFrame;
+            };
+
+            ui.separator();
+            ui.text("Manual breakpoint set");
             if ui
                 .input_text("Ins", &mut cycles)
                 .enter_returns_true(true)
@@ -83,14 +103,14 @@ fn emulation_control(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
                 state.watch_addr = u16::from_str_radix(&watch_addr, 16).unwrap_or(0);
             };
 
+            ui.separator();
             if ui.button("Stop.") {
                 state.frame_sync = FrameSync::Stop;
             };
+            ui.same_line();
             if ui.button("Reset.") {
                 state.frame_sync = FrameSync::Reset;
             };
-            ui.separator();
-
         });
 }
 
@@ -98,7 +118,9 @@ fn draw_cpu(nes: &mut Nes, ui: &Ui) {
     ui.window("CPU Debug Info")
         .position(CPU_POS, Condition::Always)
         .size(CPU_SIZE, Condition::Always)
-        .resizable(CPU_RESIZEABLE)
+        .resizable(CPU_RESIZABLE)
+        .scroll_bar(CPU_SCROLLBAR)
+        .collapsible(CPU_COLLAPSIBLE)
         .build(|| {
             {
                 fn f(ui: &Ui, cond: u8, c: &'static str) {
@@ -236,8 +258,11 @@ fn draw_code(num_lines: usize, nes: &mut Nes, ui: &Ui) {
         r
     };
     ui.window("Cpu Instructions")
-        .position(CODE_POS, Condition::Appearing)
-        .size(CODE_SIZE, Condition::Appearing)
+        .position(CODE_POS, CODE_POSITION_COND)
+        .size(CODE_SIZE, CODE_SIZE_COND)
+        .resizable(CODE_RESIZABLE)
+        .scroll_bar(CODE_SCROLLBAR)
+        .collapsible(CODE_COLLAPSIBLE)
         .build(|| {
             if let Some(_t) =
                 ui.begin_table_header("table-headers", [TableColumnSetup::new("Instruction")])
@@ -256,10 +281,11 @@ fn draw_code(num_lines: usize, nes: &mut Nes, ui: &Ui) {
 
 fn draw_ppu_buffer(nes: &mut Nes, state: &EmulationState, ui: &Ui) {
     ui.window("NES")
-        .position(PPU_SCREEN_POS, Condition::Appearing)
-        .size(PPU_GAME_WINDOW_SIZE, Condition::Always)
-        .scroll_bar(false)
-        .resizable(false)
+        .position(PPU_SCREEN_POS, PPU_SCREEN_POSITION_COND)
+        .size(PPU_GAME_WINDOW_SIZE, PPU_SCREEN_SIZE_COND)
+        .resizable(PPU_SCREEN_RESIZABLE)
+        .scroll_bar(PPU_SCREEN_SCROLLBAR)
+        .collapsible(PPU_SCREEN_COLLAPSIBLE)
         .build(|| {
             if let Some(tex_id) = state.nes_texture_id {
                 Image::new(tex_id, PPU_SCREEN_SIZE).build(ui);
@@ -271,10 +297,11 @@ fn draw_ppu_buffer(nes: &mut Nes, state: &EmulationState, ui: &Ui) {
 
 fn draw_ppu_tables(nes: &mut Nes, state: &EmulationState, ui: &Ui) {
     ui.window("PPU Sprite sheets")
-        .position(PPU_PALLET_WINDOW_POS, Condition::Appearing)
-        .size(PPU_PALLET_WINDOW_SIZE, Condition::Appearing)
-        .scroll_bar(false)
-        .resizable(false)
+        .position(PPU_PALLET_WINDOW_POS, PPU_NAME_TABLE_WINDOW_POSITION_COND)
+        .size(PPU_PALLET_WINDOW_SIZE, PPU_NAME_TABLE_WINDOW_SIZE_COND)
+        .resizable(PPU_NAME_TABLE_WINDOW_RESIZABLE)
+        .scroll_bar(PPU_NAME_TABLE_WINDOW_SCROLLBAR)
+        .collapsible(PPU_NAME_TABLE_WINDOW_COLLAPSIBLE)
         .build(|| {
             if let Some(debug_tex) = &state.debug_textures {
                 ui.text("Here's some palettes!");
@@ -341,9 +368,11 @@ fn draw_oam(nes: &mut Nes, ui: &Ui) {
 
 fn draw_ppu_status(nes: &mut Nes, ui: &Ui) {
     ui.window("PPU Debug Info")
-        .position(PPU_STATUS_WINDOW_POS, Condition::Always)
-        .size(PPU_STATUS_WINDOW_SIZE, Condition::Always)
-        .resizable(PPU_RESIZEABLE)
+        .position(PPU_STATUS_WINDOW_POS, PPU_STATUS_POSITION_COND)
+        .size(PPU_STATUS_WINDOW_SIZE, PPU_STATUS_SIZE_COND)
+        .resizable(PPU_STATUS_RESIZABLE)
+        .scroll_bar(PPU_STATUS_SCROLLBAR)
+        .collapsible(PPU_STATUS_COLLAPSIBLE)
         .build(|| {
             {
                 fn f(ui: &Ui, cond: u8, c: &'static str) {
@@ -392,6 +421,8 @@ fn draw_ppu_status(nes: &mut Nes, ui: &Ui) {
                     TableColumnSetup::new("Value"),
                 ],
             ) {
+                let vram = nes.get_ppu_vram();
+
                 ui.table_next_column();
                 ui.text("Scanline: ");
 
@@ -408,13 +439,64 @@ fn draw_ppu_status(nes: &mut Nes, ui: &Ui) {
                 ui.text("Vram: ");
 
                 ui.table_next_column();
-                ui.text(format!("{:04X}", nes.get_ppu_vram()));
+                ui.text(format!("{:0>16b}", vram));
+
+                ui.table_next_column();
+                ui.text("Coarse X: ");
+
+                ui.table_next_column();
+                ui.text(format!(
+                    "  {:}",
+                    (vram & REG_COARSE_X) >> REG_COARSE_X.trailing_zeros()
+                ));
+
+                ui.table_next_column();
+                ui.text("Coarse Y: ");
+
+                ui.table_next_column();
+                ui.text(format!(
+                    "  {:}",
+                    (vram & REG_COARSE_Y) >> REG_COARSE_Y.trailing_zeros()
+                ));
+
+                ui.table_next_column();
+                ui.text("Nametable X: ");
+
+                ui.table_next_column();
+                ui.text(format!(
+                    "  {:}",
+                    (vram & REG_NAMETABLE_X) >> REG_NAMETABLE_X.trailing_zeros()
+                ));
+
+                ui.table_next_column();
+                ui.text("Nametable Y: ");
+
+                ui.table_next_column();
+                ui.text(format!(
+                    "  {:}",
+                    (vram & REG_NAMETABLE_Y) >> REG_NAMETABLE_Y.trailing_zeros()
+                ));
+
+                ui.table_next_column();
+                ui.text("Fine X: ");
+
+                ui.table_next_column();
+                ui.text(format!("  {:}", nes.get_ppu_fine_x()));
+
+                ui.table_next_column();
+                ui.text("Fine Y: ");
+
+                ui.table_next_column();
+                ui.text(format!(
+                    "  {:}",
+                    (vram & REG_FINE_Y) >> REG_FINE_Y.trailing_zeros()
+                ));
 
                 ui.table_next_column();
                 ui.text("Tram: ");
 
                 ui.table_next_column();
-                ui.text(format!("{:04X}", nes.get_ppu_tram()));
+                ui.text(format!("{:0>16b}", nes.get_ppu_tram()));
 
                 ui.table_next_column();
                 ui.text("Frame: ");
@@ -425,6 +507,126 @@ fn draw_ppu_status(nes: &mut Nes, ui: &Ui) {
         });
 }
 
+fn draw_ppu_name_tables(nes: &mut Nes, ui: &Ui) {
+    ui.window("Name Tables")
+        .size(PPU_NAME_TABLE_WINDOW_SIZE, PPU_NAME_TABLE_WINDOW_SIZE_COND)
+        .position(PPU_NAME_TABLE_WINDOW_POS, PPU_NAME_TABLE_WINDOW_POSITION_COND)
+        .resizable(PPU_NAME_TABLE_WINDOW_RESIZABLE)
+        .scroll_bar(PPU_NAME_TABLE_WINDOW_SCROLLBAR)
+        .collapsible(PPU_NAME_TABLE_WINDOW_COLLAPSIBLE)
+        .build(|| {
+            if let Some(_t) = ui.begin_table_header(
+                "table-headers",
+                [
+                    TableColumnSetup::new("0"),
+                    TableColumnSetup::new("1"),
+                    TableColumnSetup::new("2"),
+                    TableColumnSetup::new("3"),
+                    TableColumnSetup::new("4"),
+                    TableColumnSetup::new("5"),
+                    TableColumnSetup::new("6"),
+                    TableColumnSetup::new("7"),
+                    TableColumnSetup::new("8"),
+                    TableColumnSetup::new("9"),
+                    TableColumnSetup::new("10"),
+                    TableColumnSetup::new("11"),
+                    TableColumnSetup::new("12"),
+                    TableColumnSetup::new("13"),
+                    TableColumnSetup::new("14"),
+                    TableColumnSetup::new("15"),
+                    TableColumnSetup::new("16"),
+                    TableColumnSetup::new("17"),
+                    TableColumnSetup::new("18"),
+                    TableColumnSetup::new("19"),
+                    TableColumnSetup::new("20"),
+                    TableColumnSetup::new("21"),
+                    TableColumnSetup::new("22"),
+                    TableColumnSetup::new("23"),
+                    TableColumnSetup::new("24"),
+                    TableColumnSetup::new("25"),
+                    TableColumnSetup::new("26"),
+                    TableColumnSetup::new("27"),
+                    TableColumnSetup::new("28"),
+                    TableColumnSetup::new("29"),
+                    TableColumnSetup::new("30"),
+                    TableColumnSetup::new("31"),
+                ],
+            ) {
+                for x in nes.get_ppu_name_table(0) {
+                    ui.table_next_column();
+                    ui.text_colored(COLORS[(x % 64) as usize], format!("{:02X}", x));
+                }
+            }
+        });
+}
+
+static COLORS: [[f32; 4]; 64] = [
+    [0.3294f32, 0.3294f32, 0.3294f32, 1.0000f32],
+    [0.0000f32, 0.1176f32, 0.4549f32, 1.0000f32],
+    [0.0314f32, 0.0627f32, 0.5647f32, 1.0000f32],
+    [0.1882f32, 0.0000f32, 0.5333f32, 1.0000f32],
+    [0.2667f32, 0.0000f32, 0.3922f32, 1.0000f32],
+    [0.3608f32, 0.0000f32, 0.1882f32, 1.0000f32],
+    [0.3294f32, 0.0157f32, 0.0000f32, 1.0000f32],
+    [0.2353f32, 0.0941f32, 0.0000f32, 1.0000f32],
+    [0.1255f32, 0.1647f32, 0.0000f32, 1.0000f32],
+    [0.0314f32, 0.2275f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.2510f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.2353f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.1961f32, 0.2353f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.5961f32, 0.5882f32, 0.5961f32, 1.0000f32],
+    [0.0314f32, 0.2980f32, 0.7686f32, 1.0000f32],
+    [0.1882f32, 0.1961f32, 0.9255f32, 1.0000f32],
+    [0.3608f32, 0.1176f32, 0.8941f32, 1.0000f32],
+    [0.5333f32, 0.0784f32, 0.6902f32, 1.0000f32],
+    [0.6275f32, 0.0784f32, 0.3922f32, 1.0000f32],
+    [0.5961f32, 0.1333f32, 0.1255f32, 1.0000f32],
+    [0.4706f32, 0.2353f32, 0.0000f32, 1.0000f32],
+    [0.3294f32, 0.3529f32, 0.0000f32, 1.0000f32],
+    [0.1569f32, 0.4471f32, 0.0000f32, 1.0000f32],
+    [0.0314f32, 0.4863f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.4627f32, 0.1569f32, 1.0000f32],
+    [0.0000f32, 0.4000f32, 0.4706f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.9255f32, 0.9333f32, 0.9255f32, 1.0000f32],
+    [0.2980f32, 0.6039f32, 0.9255f32, 1.0000f32],
+    [0.4706f32, 0.4863f32, 0.9255f32, 1.0000f32],
+    [0.6902f32, 0.3843f32, 0.9255f32, 1.0000f32],
+    [0.8941f32, 0.3294f32, 0.9255f32, 1.0000f32],
+    [0.9255f32, 0.3451f32, 0.7059f32, 1.0000f32],
+    [0.9255f32, 0.4157f32, 0.3922f32, 1.0000f32],
+    [0.8314f32, 0.5333f32, 0.1255f32, 1.0000f32],
+    [0.6275f32, 0.6667f32, 0.0000f32, 1.0000f32],
+    [0.4549f32, 0.7686f32, 0.0000f32, 1.0000f32],
+    [0.2980f32, 0.8157f32, 0.1255f32, 1.0000f32],
+    [0.2196f32, 0.8000f32, 0.4235f32, 1.0000f32],
+    [0.2196f32, 0.7059f32, 0.8000f32, 1.0000f32],
+    [0.2353f32, 0.2353f32, 0.2353f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.9255f32, 0.9333f32, 0.9255f32, 1.0000f32],
+    [0.6588f32, 0.8000f32, 0.9255f32, 1.0000f32],
+    [0.7373f32, 0.7373f32, 0.9255f32, 1.0000f32],
+    [0.8314f32, 0.6980f32, 0.9255f32, 1.0000f32],
+    [0.9255f32, 0.6824f32, 0.9255f32, 1.0000f32],
+    [0.9255f32, 0.6824f32, 0.8314f32, 1.0000f32],
+    [0.9255f32, 0.7059f32, 0.6902f32, 1.0000f32],
+    [0.8941f32, 0.7686f32, 0.5647f32, 1.0000f32],
+    [0.8000f32, 0.8235f32, 0.4706f32, 1.0000f32],
+    [0.7059f32, 0.8706f32, 0.4706f32, 1.0000f32],
+    [0.6588f32, 0.8863f32, 0.5647f32, 1.0000f32],
+    [0.5961f32, 0.8863f32, 0.7059f32, 1.0000f32],
+    [0.6275f32, 0.8392f32, 0.8941f32, 1.0000f32],
+    [0.6275f32, 0.6353f32, 0.6275f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+    [0.0000f32, 0.0000f32, 0.0000f32, 1.0000f32],
+];
+
 fn color(f: bool) -> [f32; 4] {
     if f {
         return debug_color::GREEN;
@@ -432,40 +634,3 @@ fn color(f: bool) -> [f32; 4] {
     debug_color::RED
 }
 
-// fn draw_ppu_bg_ids(x: i32, y: i32, nes: &mut Nes) {
-//     for y_iter in 0..30 {
-//         for x_iter in 0..32 {
-//             let s = format!(
-//                 "{:02X?}",
-//                 nes.cpu.bus.ppu.name_table[0][(y * 32 + x) as usize]
-//             );
-//             olc::draw_string(x_iter * 16, y_iter * 16, s.as_str(), olc::WHITE);
-//         }
-//     }
-// }
-
-// fn draw_swatches(x: i32, y: i32, nes: &mut Nes) {
-//     let swatch_size: i32 = 6;
-//     for p in 0..8 {
-//         for s in 0..4 {
-//             olc::fill_rect(
-//                 x + p * (swatch_size * 5) + s * swatch_size,
-//                 y,
-//                 swatch_size,
-//                 swatch_size,
-//                 nes.cpu.bus.ppu.get_color_from_palette_ram(p as u8, s as u8),
-//             );
-//         }
-//     }
-// }
-
-// // Dumps the listed instructions
-// pub fn dump_code(nes: &mut Nes) {
-//     let mut keys: Vec<&u16> = nes.decoded_rom.keys().collect::<Vec<&u16>>();
-//     keys.sort();
-//     for key in keys {
-//         if let Some(x) = nes.decoded_rom.get(key) {
-//             println!("{:?}", x);
-//         }
-//     }
-// }

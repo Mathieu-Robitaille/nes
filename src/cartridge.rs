@@ -38,7 +38,9 @@ impl Cartridge {
     pub fn from(pick: Rom) -> io::Result<Cartridge> {
         let cart_name = match pick {
             // https://www.nesdev.org/wiki/Emulator_tests
-            Rom::CPUTest => "test-roms/cpu/nestest.nes".to_string(),
+            Rom::NesTest => "test-roms/cpu/nestest.nes".to_string(),
+            Rom::CpuDummyReads => "test-roms/cpu/cpu_dummy_reads.nes".to_string(),
+            Rom::CpuDummyWritesPpuMem => "test-roms/cpu/cpu_dummy_writes_ppumem.nes".to_string(),
             Rom::PpuColorTest => "test-roms/ppu/color_test.nes".to_string(),
             Rom::Mario => "test-roms/carts/super_mario.nes".to_string(),
             Rom::DonkeyKong => "test-roms/carts/Donkey Kong (World) (Rev A).nes".to_string(),
@@ -61,20 +63,6 @@ impl Cartridge {
             f.read_exact(headder_slice).unwrap();
         }
 
-        // print!("Name: ");
-        // for i in headder.name {
-        //     print!("{:02X?} ", i);
-        // }
-        // print!("\n");
-        // println!("PRG ROM CHUNKS: {:02X?}", headder.prg_rom_chunks);
-        // println!("CHR ROM CHUNKS: {:02X?}", headder.chr_rom_chunks);
-        // println!("MAPPER 1: {:02X?}", headder.mapper1);
-        // println!("MAPPER 2: {:02X?}", headder.mapper2);
-        // println!("prg_ram_size: {:02X?}", headder.prg_ram_size);
-        // println!("tv_system1: {:02X?}", headder.tv_system1);
-        // println!("tv_system2: {:02X?}", headder.tv_system2);
-        // println!("unused: {:?}", headder.unused);
-
         if headder.mapper1 & 0x04 > 0 {
             f.seek(io::SeekFrom::Current(512))?; // BAD SEEK!
         }
@@ -82,7 +70,7 @@ impl Cartridge {
 
         // True for vertical
         // false for horizontal
-        let mirror = match (headder.mapper1 & 0x81) > 0 {
+        let mirror = match (headder.mapper1 & 0x01) > 0 {
             true => MIRROR::VERTICAL,
             false => MIRROR::HORIZONTAL,
         };
@@ -157,9 +145,10 @@ impl Cartridge {
 }
 
 pub enum Rom {
-    CPUTest,
+    NesTest,
+    CpuDummyReads,
+    CpuDummyWritesPpuMem,
     PpuColorTest,
     Mario,
     DonkeyKong,
 }
-

@@ -81,6 +81,7 @@ pub struct Cpu6502 {
     pub(crate) opcode: u8,
     pub(crate) clock_count: u32,
     pub(crate) instruction_count: usize,
+    instruction: Instruction,
     pub instruction_complete: bool,
 
     pub(crate) bus: Bus,
@@ -127,7 +128,7 @@ impl Cpu6502 {
         }
     }
 
-    pub fn generate_debug_string(&self) -> String {
+    pub fn generate_debug_string(&mut self) -> String {
         let Cpu6502 {
             acc,
             x_reg,
@@ -136,15 +137,26 @@ impl Cpu6502 {
             clock_count,
             instruction_count,
             opcode,
+            pc,
             pc_before,
             a_before,
             x_before,
             y_before,
+            instruction,
+            bus,
             ..
         } = self;
+        // let mut ins_str: String = format!(
+        //     "c{:} i{:} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} ${:04X}: {:02X}",
+        //     clock_count, instruction_count, a_before, x_before, y_before, stack_pointer, pc_before, opcode
+        // );
+        let mem_00 = bus.cpu_read(0x0000, false);
+        let mem_01 = bus.cpu_read(0x0001, false);
+        let mem_02 = bus.cpu_read(0x0002, false);
+        let mem_03 = bus.cpu_read(0x0003, false);
         let mut ins_str: String = format!(
-            "c{:} i{:} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} ${:04X}: {:02X}",
-            clock_count, instruction_count, a_before, x_before, y_before, stack_pointer, pc_before, opcode
+            "{:04X}  {:02X} {:} A:{:02X} X:{:02X} Y:{:02X} SP:{:02X} | 00:{:02X} 01:{:02X} 02:{:02X} 03:{:02X}",
+            pc_before, opcode, instruction.name, a_before, x_before, y_before, stack_pointer, mem_00, mem_01, mem_02, mem_03,
         );
         ins_str
     }
@@ -154,7 +166,6 @@ impl Cpu6502 {
         self.clock_count += 1;
         self.cycles -= 1;
         if self.cycles == 0 {
-
             self.a_before = self.acc;
             self.x_before = self.x_reg;
             self.y_before = self.y_reg;
@@ -167,21 +178,21 @@ impl Cpu6502 {
             self.pc = self.pc.wrapping_add(1); // fix
 
             let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
+            self.instruction = INSTRUCTIONS_ARR[self.opcode as usize];
 
             self.addressing_mode = ins.addr_mode.clone();
             let page_change_additional_cycle: u8 = process_instruction_addressing_mode(ins, self);
 
-            
             // Run the instruction
-            (ins.function)(self); /* removed additional clock cycles as it was wroooong */ 
-            
+            (ins.function)(self); /* removed additional clock cycles as it was wroooong */
+
             self.cycles += ins.clock_cycles + page_change_additional_cycle;
-            
+
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
             self.instruction_count += 1;
             self.instruction_complete = true;
-            
+
             ret = Some(self.generate_debug_string());
         }
         ret
@@ -197,7 +208,7 @@ impl Cpu6502 {
         self.x_reg = 0;
         self.y_reg = 0;
 
-        self.stack_pointer = self.stack_pointer.wrapping_sub(3);
+        // self.stack_pointer = self.stack_pointer.wrapping_sub(3);
 
         self.status = 0x00 | CPUFlags::U;
 
@@ -277,6 +288,7 @@ impl Cpu6502 {
             a_before: 0,
             x_before: 0,
             y_before: 0,
+            instruction: INSTRUCTIONS_ARR[0xFF],
         }
     }
 }

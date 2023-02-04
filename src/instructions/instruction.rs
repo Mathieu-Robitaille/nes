@@ -170,7 +170,9 @@ pub fn process_instruction_addressing_mode(instruction: &Instruction, cpu: &mut 
         AddressingMode::IZX => {
             let t: u16 = cpu.read_bus(cpu.pc) as u16;
             cpu.pc += 1;
-            cpu.addr_abs = cpu.read_bus_two_bytes(t + cpu.x_reg as u16);
+            let lo = cpu.read_bus((t + (cpu.x_reg as u16)) & 0x00FF) as u16;
+            let hi = cpu.read_bus((t + (cpu.x_reg as u16) + 1) & 0x00FF) as u16;
+            cpu.addr_abs = (hi << 8) | lo;
             0
         }
 

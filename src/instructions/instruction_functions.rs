@@ -362,7 +362,7 @@ pub fn NOP(cpu: &mut Cpu6502) {
         0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => {
             cpu.cycles += 1;
         }
-        _ => { }
+        _ => {}
     }
 }
 
@@ -420,7 +420,7 @@ pub fn PLP(cpu: &mut Cpu6502) {
 #[allow(non_snake_case)]
 pub fn ROL(cpu: &mut Cpu6502) {
     cpu.fetch();
-    cpu.temp = ((cpu.fetched << 1) | cpu.get_flag(CPUFlags::C)) as u16;
+    cpu.temp = (((cpu.fetched as u16) << 1) | (cpu.get_flag(CPUFlags::C)) as u16);
     let x: u8 = (cpu.temp & 0x00FF) as u8;
 
     set_carry(cpu, cpu.temp);
@@ -582,8 +582,7 @@ pub fn TYA(cpu: &mut Cpu6502) {
 }
 
 #[allow(non_snake_case)]
-pub fn XXX(cpu: &mut Cpu6502) {
-}
+pub fn XXX(cpu: &mut Cpu6502) {}
 
 fn set_carry(cpu: &mut Cpu6502, reg: u16) {
     cpu.set_flag(CPUFlags::C, reg & 0xFF00 > 0);

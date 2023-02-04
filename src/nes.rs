@@ -1,7 +1,7 @@
 use crate::bus::Bus;
 use crate::cartridge::{Cartridge, Rom};
 use crate::consts::{
-    emulation_consts::EMU_DEBUG,
+    emulation_consts::CPU_DEBUG,
     nes_consts::CART,
     ppu_consts,
     screen_consts::{HEIGHT, WIDTH},
@@ -9,7 +9,10 @@ use crate::consts::{
 use crate::cpu::Cpu6502;
 use crate::debug::draw_debug;
 use crate::disassembler::disassemble_rom;
-use crate::ppu::{get_oam_field, set_oam_field, ObjectAttributeEntry};
+use crate::ppu::{
+    helpers::{get_oam_field, set_oam_field},
+    structures::ObjectAttributeEntry,
+};
 
 use glium::{
     backend::Facade,
@@ -40,9 +43,9 @@ impl Nes {
                 let decoded_rom = disassemble_rom(0x0000, 0xFFFF, cart_rc.clone());
                 let mut cpu = Cpu6502::new(bus);
                 match CART {
-                    Rom::CPUTest => {
-                        cpu.reset(Some(0xC000));
-                    }
+                    // Rom::NesTest => {
+                    //     cpu.reset(Some(0xC000));
+                    // }
                     _ => {
                         cpu.reset(None);
                     }
@@ -90,7 +93,7 @@ impl Nes {
                     }
                 }
             } else {
-                if !EMU_DEBUG {
+                if CPU_DEBUG {
                     if let Some(x) = self.cpu.clock() {
                         println!("{x}")
                     }
@@ -124,7 +127,7 @@ impl Nes {
         idx: usize,
         palette_id: u8,
     ) -> ppu_consts::SprPatternTableUnitT {
-        self.cpu.bus.ppu.get_pattern_table(idx, palette_id)
+        self.cpu.bus.ppu.debug_get_pattern_table(idx, palette_id)
     }
 
     pub fn clock_one_frame(&mut self) {
@@ -174,6 +177,12 @@ impl Nes {
     }
     pub fn get_ppu_frame_count(&self) -> i32 {
         self.cpu.bus.ppu.frame_complete_count
+    }
+    pub fn get_ppu_fine_x(&self) -> u8 {
+        self.cpu.bus.ppu.debug_get_fine_x()
+    }
+    pub fn get_ppu_name_table(&self, index: usize) -> [u8; 1024] {
+        self.cpu.bus.ppu.get_name_table(index)
     }
     pub fn clock_one_scanline(&mut self) {
         let sl = self.cpu.bus.ppu.debug_get_scanline();

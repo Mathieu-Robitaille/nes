@@ -1,4 +1,4 @@
-#![allow(unused)]
+// #![allow(unused)]
 
 mod audio;
 mod bus;
@@ -19,7 +19,7 @@ use nes::Nes;
 use renderer::*;
 
 fn main() {
-    let mut main_nes: Nes = Nes::new();
+    let main_nes: Nes = Nes::new();
     let mut system = init();
     let mut emulation_state = emulator::EmulationState::new();
     emulation_state
