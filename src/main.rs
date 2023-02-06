@@ -14,7 +14,7 @@ mod nes;
 mod ppu;
 mod renderer;
 
-use glium::{backend::Facade, Display};
+use glium::{backend::Facade};
 use nes::Nes;
 use renderer::*;
 

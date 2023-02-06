@@ -504,7 +504,9 @@ impl PPU {
         if self.mask.render_sprites.get_as_bool() {
             'SpriteEvaluation :for (i, e) in self.sprites_to_render.iter().enumerate() {
                 let (x, _, _, _) = e.to_u16_arr();
-                if (x..(x + 8)).contains(&(self.cycle as u16)) {
+
+                // Really weird off by 1 issue here...
+                if (x..(x + 8)).contains(&((self.cycle +1) as u16)) {
                     let p0_pixel: u8 = ((self.sprite_shifter_pattern_lo[i] & 0x80) > 0) as u8;
                     let p1_pixel: u8 = ((self.sprite_shifter_pattern_hi[i] & 0x80) > 0) as u8;
                     fg_pixel = (p1_pixel << 1) | p0_pixel;
@@ -546,5 +548,6 @@ impl LineState {
 }
 
 pub fn generate_dummy_screen() -> ScreenT {
-    [0; NUM_CYCLES_PER_SCANLINE * NUM_SCANLINES_RENDERED * COLOR_CHANNELS]
+    // [0; NUM_CYCLES_PER_SCANLINE * NUM_SCANLINES_RENDERED * COLOR_CHANNELS]
+    include_bytes!("title.bin").to_owned()
 }

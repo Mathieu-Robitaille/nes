@@ -137,9 +137,15 @@ pub mod debug_consts {
     const PPU_SCREEN_Y: f32 = PADDING_SIZE;
     pub const PPU_SCREEN_POS: [f32; 2] = [PPU_SCREEN_X, PPU_SCREEN_Y];
 
-    const PPU_SCREEN_X_SIZE: f32 = NUM_CYCLES_PER_SCANLINE as f32;
-    const PPU_SCREEN_Y_SIZE: f32 = NUM_SCANLINES_RENDERED as f32;
+    const PPU_GAME_SCALE: f32 = 2.0f32;
+    const PPU_SCREEN_X_BASE_SIZE: f32 = NUM_CYCLES_PER_SCANLINE as f32;
+    const PPU_SCREEN_X_SIZE: f32 = PPU_SCREEN_X_BASE_SIZE * PPU_GAME_SCALE;
+
+    const PPU_SCREEN_Y_BASE_SIZE: f32 = NUM_SCANLINES_RENDERED as f32;
+    const PPU_SCREEN_Y_SIZE: f32 = PPU_SCREEN_Y_BASE_SIZE * PPU_GAME_SCALE;
+
     pub const PPU_SCREEN_SIZE: [f32; 2] = [PPU_SCREEN_X_SIZE, PPU_SCREEN_Y_SIZE];
+
 
     const PPU_GAME_WINDOW_X_SIZE: f32 = PPU_SCREEN_X_SIZE + (PADDING_SIZE * 2f32);
     const PPU_GAME_WINDOW_Y_SIZE: f32 = PPU_SCREEN_Y_SIZE + (PADDING_SIZE * 4f32);
@@ -232,7 +238,7 @@ pub mod render_consts {
 pub mod nes_consts {
     use crate::cartridge::Rom;
 
-    pub const CART: Rom = Rom::DonkeyKong;
+    pub const CART: Rom = Rom::Mario;
 }
 
 pub mod emulation_consts {

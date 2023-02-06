@@ -80,6 +80,15 @@ fn emulation_control(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
             if ui.button("Frame") {
                 state.frame_sync = FrameSync::OneFrame;
             };
+            ui.separator();
+            ui.text("PPU Control");
+            if ui.button("Inc palette") {
+                state.increment_palette_id();
+            }
+            ui.same_line();
+            if ui.button("Dec palette") {
+                state.decrement_palette_id();
+            }
 
             ui.separator();
             ui.text("Manual breakpoint set");
