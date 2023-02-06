@@ -28,7 +28,7 @@ pub fn draw_debug(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
         draw_ppu_name_tables(nes, ui);
     }
 
-    // draw_oam(nes, ui);
+    draw_oam(nes, ui);
     // draw_ram("Stack".to_string(), 16, 0x100, nes, ui);
     if CPU_DEBUG {
         draw_ram("Debug Results".to_string(), 16, 0x0000, nes, ui);

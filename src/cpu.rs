@@ -1,15 +1,15 @@
 use crate::bus::{Bus, BusReader, BusWriter};
-use crate::disassembler::decode_bytes_used;
 use crate::instructions::{
-    instruction::{process_instruction_addressing_mode, AddressingMode, Instruction},
-    instruction_table::instruction_table::INSTRUCTIONS_ARR,
+    instruction::{
+        process_instruction_addressing_mode, 
+        AddressingMode, 
+        Instruction,
+        INSTRUCTION_LOOKUP,
+    },
 };
 use bitflags::bitflags;
-use std::io;
 use std::{
-    cell::RefCell,
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign},
-    rc::Rc,
 };
 
 bitflags! {
@@ -81,20 +81,17 @@ pub struct Cpu6502 {
     pub(crate) opcode: u8,
     pub(crate) clock_count: u32,
     pub(crate) instruction_count: usize,
-    instruction: Instruction,
+    pub instruction: Instruction,
     pub instruction_complete: bool,
 
     pub(crate) bus: Bus,
-    pc_before: u16,
-    a_before: u8,
-    x_before: u8,
-    y_before: u8,
 }
 
 impl Cpu6502 {
     pub(crate) fn read_bus(&mut self, addr: u16) -> u8 {
         self.bus_read(addr, false)
     }
+
     pub(crate) fn write_bus(&mut self, addr: u16, data: u8) {
         self.bus_write(addr, data)
     }
@@ -128,79 +125,34 @@ impl Cpu6502 {
         }
     }
 
-    pub fn generate_debug_string(&mut self) -> String {
-        let Cpu6502 {
-            acc,
-            x_reg,
-            y_reg,
-            stack_pointer,
-            clock_count,
-            instruction_count,
-            opcode,
-            pc,
-            pc_before,
-            a_before,
-            x_before,
-            y_before,
-            instruction,
-            bus,
-            ..
-        } = self;
-        // let mut ins_str: String = format!(
-        //     "c{:} i{:} A:{:02X} X:{:02X} Y:{:02X} S:{:02X} ${:04X}: {:02X}",
-        //     clock_count, instruction_count, a_before, x_before, y_before, stack_pointer, pc_before, opcode
-        // );
-        let mem_00 = bus.cpu_read(0x0000, false);
-        let mem_01 = bus.cpu_read(0x0001, false);
-        let mem_02 = bus.cpu_read(0x0002, false);
-        let mem_03 = bus.cpu_read(0x0003, false);
-        let mut ins_str: String = format!(
-            "{:04X}  {:02X} {:} A:{:02X} X:{:02X} Y:{:02X} SP:{:02X} | 00:{:02X} 01:{:02X} 02:{:02X} 03:{:02X}",
-            pc_before, opcode, instruction.name, a_before, x_before, y_before, stack_pointer, mem_00, mem_01, mem_02, mem_03,
-        );
-        ins_str
-    }
-
-    pub(crate) fn clock(&mut self) -> Option<String> {
-        let mut ret: Option<String> = None;
-        self.clock_count += 1;
-        self.cycles -= 1;
+    pub(crate) fn clock(&mut self) {
         if self.cycles == 0 {
-            self.a_before = self.acc;
-            self.x_before = self.x_reg;
-            self.y_before = self.y_reg;
-
-            self.pc_before = self.pc;
             self.opcode = self.read_bus(self.pc);
-            // make suuuuuuure its set
-            self.set_flag(CPUFlags::U, true);
 
-            self.pc = self.pc.wrapping_add(1); // fix
+            self.pc = self.pc.wrapping_add(1);
 
-            let ins: &Instruction = &INSTRUCTIONS_ARR[self.opcode as usize];
-            self.instruction = INSTRUCTIONS_ARR[self.opcode as usize];
+            self.instruction = INSTRUCTION_LOOKUP[self.opcode as usize];
 
-            self.addressing_mode = ins.addr_mode.clone();
-            let page_change_additional_cycle: u8 = process_instruction_addressing_mode(ins, self);
+            self.addressing_mode = self.instruction.addr_mode.clone();
+            let page_change_additional_cycle: u8 = process_instruction_addressing_mode(self);
 
             // Run the instruction
-            (ins.function)(self); /* removed additional clock cycles as it was wroooong */
+            (self.instruction.function)(self); /* removed additional clock cycles as it was wroooong */
 
-            self.cycles += ins.clock_cycles + page_change_additional_cycle;
+            self.cycles += self.instruction.clock_cycles + page_change_additional_cycle;
 
             // make suuuuuuure its set
             self.set_flag(CPUFlags::U, true);
             self.instruction_count += 1;
             self.instruction_complete = true;
-
-            ret = Some(self.generate_debug_string());
         }
-        ret
+        self.clock_count += 1;
+        self.cycles -= 1;
     }
 
-    pub(crate) fn reset(&mut self, testcart: Option<u16>) {
+    pub(crate) fn reset(&mut self, reset_vector: Option<u16>) {
         self.addr_abs = 0xFFFC;
-        match testcart {
+        match reset_vector {
             Some(x) => self.pc = x,
             None => self.pc = self.read_bus_two_bytes(self.addr_abs),
         };
@@ -275,7 +227,7 @@ impl Cpu6502 {
             status: 0x00,
             fetched: 0x00,
             temp: 0x0000,
-            addr_abs: 0x0000,
+            addr_abs: 0xFFFC,
             addr_rel: 0x00,
             addressing_mode: AddressingMode::ABS,
             opcode: 0x00,
@@ -284,11 +236,7 @@ impl Cpu6502 {
             instruction_count: 0,
             instruction_complete: false,
             bus: b,
-            pc_before: 0x0000,
-            a_before: 0,
-            x_before: 0,
-            y_before: 0,
-            instruction: INSTRUCTIONS_ARR[0xFF],
+            instruction: INSTRUCTION_LOOKUP[0xFF],
         }
     }
 }

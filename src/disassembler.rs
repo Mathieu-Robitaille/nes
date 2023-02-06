@@ -1,8 +1,9 @@
 use crate::{
     cartridge::Cartridge,
     instructions::{
-        instruction::AddressingMode, instruction::AddressingMode::*,
-        instruction_table::instruction_table::INSTRUCTIONS_ARR,
+        instruction::AddressingMode, 
+        instruction::AddressingMode::*,
+        instruction::INSTRUCTION_LOOKUP,
     },
 };
 use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
@@ -22,14 +23,14 @@ impl fmt::Display for AddressingMode {
             IND => write!(f, "IND"),
             IZX => write!(f, "IZX"),
             IZY => write!(f, "IZY"),
-            XXX => write!(f, "XXX"),
+            YYY => write!(f, "XXX"),
         }
     }
 }
 
 pub fn decode_bytes_used(ins: AddressingMode) -> usize {
     match ins {
-        IMP | XXX => 0,
+        IMP | YYY => 0,
         IMM | IZX | IZY | REL | ZP0 | ZPX | ZPY => 1,
         ABS | ABX | ABY | IND => 2,
     }
@@ -83,9 +84,9 @@ pub fn disassemble_rom(
         let opcode = cart.cpu_read(addr as u16).unwrap_or(0x00);
         addr += 1;
         instruction_string
-            .push_str(format!("{} ", INSTRUCTIONS_ARR[opcode as usize].name).as_str());
+            .push_str(format!("{} ", INSTRUCTION_LOOKUP[opcode as usize].name).as_str());
 
-        let addr_mode = INSTRUCTIONS_ARR[opcode as usize].addr_mode;
+        let addr_mode = INSTRUCTION_LOOKUP[opcode as usize].addr_mode;
 
         match addr_mode {
             IMP => {
@@ -126,7 +127,7 @@ pub fn disassemble_rom(
                     )
                 }
             }
-            XXX => {
+            YYY => {
                 instruction_string.push_str("How?");
             }
         }

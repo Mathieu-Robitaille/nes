@@ -16,6 +16,9 @@ impl PPU {
         self.bg_shifter_pattern_hi = 0x0000;
         self.bg_shifter_attrib_lo = 0x0000;
         self.bg_shifter_attrib_hi = 0x0000;
+        self.sprites_to_render = vec![];
+        self.sprite_shifter_pattern_lo = [0; 8];
+        self.sprite_shifter_pattern_hi = [0; 8];
         self.status = 0x00.into();
         self.mask = 0x00.into();
         self.ctrl = 0x00.into();

@@ -1,28 +1,16 @@
 use crate::bus::Bus;
-use crate::cartridge::{Cartridge, Rom};
+use crate::cartridge::Cartridge;
 use crate::consts::{
     emulation_consts::CPU_DEBUG,
     nes_consts::CART,
     ppu_consts,
-    screen_consts::{HEIGHT, WIDTH},
 };
 use crate::cpu::Cpu6502;
-use crate::debug::draw_debug;
 use crate::disassembler::disassemble_rom;
 use crate::ppu::{
-    helpers::{get_oam_field, set_oam_field},
+    helpers::set_oam_field,
     structures::ObjectAttributeEntry,
 };
-
-use glium::{
-    backend::Facade,
-    texture::{ClientFormat, RawImage2d},
-    uniforms::{MagnifySamplerFilter, MinifySamplerFilter, SamplerBehavior},
-    Display, Surface, Texture2d,
-};
-use imgui::{TextureId, Textures};
-use imgui_glium_renderer::Texture;
-use std::borrow::Cow;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -93,13 +81,10 @@ impl Nes {
                     }
                 }
             } else {
+                self.cpu.clock();
                 if CPU_DEBUG {
-                    if let Some(x) = self.cpu.clock() {
-                        println!("{x}")
-                    }
-                } else {
-                    self.cpu.clock();
-                }
+                    /* add cpu state logging? */
+                } 
             }
         }
 
@@ -110,6 +95,7 @@ impl Nes {
         self.system_clock += 1;
     }
 
+    
     pub fn get_frame_status(&self) -> bool {
         self.cpu.bus.ppu.frame_complete
     }

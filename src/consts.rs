@@ -71,20 +71,6 @@ pub mod ppu_consts {
     pub const PPU_CTRL_IGNORE_CYCLES: usize = PPU_CTRL_IGNORE_CPU_CYCLES * 3;
 }
 
-pub mod ppu_register_consts {
-    pub const PPU_CTRL_OFFSET: usize = 0x00;
-    pub const PPU_MASK_OFFSET: usize = 0x01;
-    pub const PPU_STATUS_OFFSET: usize = 0x02;
-    pub const PPU_OAMADDR_OFFSET: usize = 0x03;
-    pub const PPU_OAMDATA_OFFSET: usize = 0x04;
-    pub const PPU_SCROLL_OFFSET: usize = 0x05;
-    pub const PPU_ADDR_OFFSET: usize = 0x06;
-    pub const PPU_DATA_OFFSET: usize = 0x07;
-    pub const APU_IO_OAM_DMA_OFFSET: usize = 0x14;
-
-    pub const PPU_REG_SIZE: usize = 0x0008;
-}
-
 pub mod debug_consts {
     use crate::consts::ppu_consts::{
         NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, SPR_PATTERN_TABLE_SIZE,
@@ -246,7 +232,7 @@ pub mod render_consts {
 pub mod nes_consts {
     use crate::cartridge::Rom;
 
-    pub const CART: Rom = Rom::Mario;
+    pub const CART: Rom = Rom::DonkeyKong;
 }
 
 pub mod emulation_consts {

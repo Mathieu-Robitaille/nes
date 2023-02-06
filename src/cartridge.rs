@@ -135,6 +135,9 @@ impl Cartridge {
         }
         Err(())
     }
+
+    /// This is probably never going to get used
+    #[allow(unused)]
     pub fn ppu_write(&mut self, addr: u16, data: u8) -> Result<bool, ()> {
         if let Ok(mapped_addr) = self.get_mapper().ppu_map_write(addr) {
             self.chr_memory[mapped_addr as usize] = data;
@@ -144,6 +147,7 @@ impl Cartridge {
     }
 }
 
+#[allow(unused)]
 pub enum Rom {
     NesTest,
     CpuDummyReads,

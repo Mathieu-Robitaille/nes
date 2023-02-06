@@ -6,7 +6,9 @@ mod statics;
 pub mod structures;
 mod write;
 
-// use bitfield;
+// 26:00
+use structures::*;
+use helpers::*;
 use crate::cartridge::Cartridge;
 use crate::consts::{
     emulation_consts::COLOR_CHANNELS,
@@ -28,17 +30,17 @@ pub struct PPU {
 
     spr_pattern_table: SprPatternTableT,
 
-    pub oam: [structures::ObjectAttributeEntry; OAM_SIZE],
+    pub oam: [ObjectAttributeEntry; OAM_SIZE],
     pub oam_addr: u8,
 
     pub frame_complete: bool,
     pub frame_complete_count: i32,
 
-    pub(crate) status: structures::StatusRegister,
-    pub(crate) mask: structures::MaskRegister,
-    pub(crate) ctrl: structures::ControlRegister,
-    pub(crate) vram_addr: structures::VramRegister,
-    pub(crate) tram_addr: structures::VramRegister,
+    pub(crate) status: StatusRegister,
+    pub(crate) mask: MaskRegister,
+    pub(crate) ctrl: ControlRegister,
+    pub(crate) vram_addr: VramRegister,
+    pub(crate) tram_addr: VramRegister,
 
     pub nmi: bool,
 
@@ -61,6 +63,11 @@ pub struct PPU {
     bg_shifter_pattern_hi: u16,
     bg_shifter_attrib_lo: u16,
     bg_shifter_attrib_hi: u16,
+
+    // Sprites
+    sprites_to_render: Vec<ObjectAttributeEntry>,
+    sprite_shifter_pattern_lo: [u8; 8],
+    sprite_shifter_pattern_hi: [u8; 8],
 
     pub debug: bool,
     clock_count: usize,
@@ -86,8 +93,12 @@ impl PPU {
                 [0; SPR_PATTERN_TABLE_SIZE * SPR_PATTERN_TABLE_SIZE * COLOR_CHANNELS],
             ],
 
-            oam: [structures::ObjectAttributeEntry::default(); OAM_SIZE],
+            oam: [ObjectAttributeEntry::default(); OAM_SIZE],
             oam_addr: 0,
+
+            sprites_to_render: vec![],
+            sprite_shifter_pattern_lo: [0; 8],
+            sprite_shifter_pattern_hi: [0; 8],
 
             frame_complete: false,
             frame_complete_count: 0,
@@ -150,12 +161,13 @@ impl PPU {
             ppu.bg_next_tile_attrib &= 0x03;
         }
 
+        // Background logic
         if (1..=257).contains(&self.cycle) || (321..=337).contains(&self.cycle) {
-            helpers::update_shifters(self);
+            self.update_bg_shifters();
             match (self.cycle - 1) % 8 {
                 // Fetch nametable byte
                 0 => {
-                    helpers::load_background_shifters(self);
+                    self.load_background_shifters();
                     self.bg_next_tile_id =
                         self.ppu_read(0x2000 | (self.vram_addr.get_register() & 0x0FFF));
                 }
@@ -174,27 +186,14 @@ impl PPU {
                 6 => {
                     calculate_pattern_table_addr(self, false);
                 }
-                7 => helpers::increment_scroll_x(self),
+                7 => self.increment_scroll_x(),
                 _ => {}
             }
-            let mut bg_pixel: u8 = 0x00;
-            let mut bg_palette: u8 = 0x00;
-            if self.mask.render_background.get_as_value() > 0 {
-                let bit_mux = 0x8000 >> self.fine_x;
-                let p0_pixel: u8 = ((self.bg_shifter_pattern_lo & bit_mux) > 0) as u8;
-                let p1_pixel: u8 = ((self.bg_shifter_pattern_hi & bit_mux) > 0) as u8;
 
-                bg_pixel = (p1_pixel << 1) | p0_pixel;
-
-                let bg_pal0: u8 = ((self.bg_shifter_attrib_lo & bit_mux) > 0) as u8;
-                let bg_pal1: u8 = ((self.bg_shifter_attrib_hi & bit_mux) > 0) as u8;
-                bg_palette = (bg_pal1 << 1) | bg_pal0;
-            }
-
-            let color = self.get_color_from_palette_ram(bg_palette, bg_pixel);
+            let color = self.get_color_to_draw();
 
             if (0..NUM_SCANLINES_RENDERED).contains(&self.scanline) && (0..WIDTH).contains(&self.cycle) {
-                helpers::write_pixel_to_output(
+                write_pixel_to_output(
                     ((self.scanline * NUM_CYCLES_PER_SCANLINE) + self.cycle) * COLOR_CHANNELS,
                     &mut self.screen,
                     color,
@@ -202,17 +201,17 @@ impl PPU {
             }
         }
 
-        if self.cycle == 338 || self.cycle == 340 {
-            self.bg_next_tile_id = self.ppu_read(0x2000 | (self.vram_addr.get_register() & 0x0FFF))
-        }
-
         if self.cycle == 256 {
-            helpers::increment_scroll_y(self);
+            self.increment_scroll_y();
         }
 
         if self.cycle == 257 {
-            // helpers::load_background_shifters(self);
-            helpers::transfer_address_x(self)
+            // load_background_shifters(self);
+            self.transfer_address_x()
+        }
+
+        if self.cycle == 338 || self.cycle == 340 {
+            self.bg_next_tile_id = self.ppu_read(0x2000 | (self.vram_addr.get_register() & 0x0FFF))
         }
     }
 
@@ -247,16 +246,85 @@ impl PPU {
                     self.status.vertical_blank.zero();
                     self.status.sprite_overflow.zero();
                     self.status.sprite_zero_hit.zero();
-                    // for i in 0..8 {
-                    //     // clear shifters
+                    self.sprite_shifter_pattern_lo = [0; 8];
+                    self.sprite_shifter_pattern_hi = [0; 8]; 
                 }
 
-                // self.process_visible_cycle();
+                self.process_visible_cycle();
 
                 if (280..=304).contains(&self.cycle) {
                     /* vertical scroll bits are reloaded if rendering is enabled. */
-                    helpers::transfer_address_y(self);
+                    self.transfer_address_y();
                 }
+            }
+        }
+
+        // Sprite logic
+        if self.cycle == 257 && self.scanline != 261 {
+            self.load_sprites_to_render();
+        }
+
+        if self.cycle == 340 {
+            for (i, e) in self.sprites_to_render.iter().enumerate() {
+                let pattern_addr_lo: u16;
+                let (_x, y, id, attr): (u16, u16, u16, u16) = e.to_u16_arr();
+                if !self.ctrl.sprite_size.get_as_bool() {
+                    // 8x8 mode
+                    let table: u16 = self.ctrl.pattern_sprite.get_as_value() as u16;
+
+                    if e.attribute & 0x80 == 0 {
+                        // Normal vertical orientation
+                        pattern_addr_lo = 
+                            (table << 12)
+                            | id << 4
+                            | ((self.scanline as u16) - y);
+
+                    } else {
+                        // flipped vertical
+                        pattern_addr_lo = 
+                            (table << 12)
+                            | id << 4
+                            | (7 - ((self.scanline as u16) - y));
+                    }
+                } else {
+                    // 8x16 mode
+                    if e.attribute & 0x80 == 0 {
+                        // Normal vertical orientation
+                        if (0..8).contains(&(self.scanline - (e.y as usize))) {
+                            pattern_addr_lo =
+                                (id & 0x0001) << 12
+                                | (id & 0x00FE) << 4
+                                | ((self.scanline as u16) - y);
+                        } else {
+                            pattern_addr_lo =
+                                (id & 0x0001) << 12
+                                | ((id & 0x00FE) + 1) << 4
+                                | ((self.scanline as u16) - y);
+                        }
+                    } else {
+                        // flipped vertical
+                        if (0..8).contains(&(self.scanline - (e.y as usize))) {
+                            pattern_addr_lo =
+                                (id & 0x0001) << 12
+                                | (id & 0x00FE) << 4
+                                | (7 - ((self.scanline as u16) - y));
+                        } else {
+                            pattern_addr_lo =
+                                (id & 0x0001) << 12
+                                | ((id & 0x00FE) + 1) << 4
+                                | ((self.scanline as u16) - y);
+                        }
+                    }
+                }
+
+                if attr & 0x40 > 0 {
+                    self.sprite_shifter_pattern_lo[i] = self.ppu_read(pattern_addr_lo).reverse_bits();
+                    self.sprite_shifter_pattern_hi[i] = self.ppu_read(pattern_addr_lo + 8).reverse_bits();
+                } else {
+                    self.sprite_shifter_pattern_lo[i] = self.ppu_read(pattern_addr_lo); 
+                    self.sprite_shifter_pattern_hi[i] = self.ppu_read(pattern_addr_lo + 8);
+                }
+
             }
         }
 
@@ -274,24 +342,6 @@ impl PPU {
         self.clock_count += 1;
     }
 
-    #[allow(unused)]
-    fn clock2(&mut self) {
-        ///
-        let increment_scroll_x = |ppu: &mut PPU| {
-            if ppu.mask.render_background.get() == 0 && ppu.mask.render_sprites.get() == 0 {
-                return;
-            }
-            if ppu.vram_addr.coarse_x.get_as_value() == 31 {
-                ppu.vram_addr.coarse_x.zero();
-                ppu.vram_addr.nametable_x.flip_bits();
-            } else {
-                ppu.vram_addr.coarse_x.increment();
-            }
-        };
-
-        // let
-    }
-
     #[inline(always)]
     fn grayscale(&self) -> u8 {
         if self.mask.grayscale.get_as_value() > 0 {
@@ -301,7 +351,7 @@ impl PPU {
         }
     }
 
-    pub fn get_color_from_palette_ram(&self, palette: u8, pixel: u8) -> structures::Pixel {
+    pub fn get_color_from_palette_ram(&self, palette: u8, pixel: u8) -> Pixel {
         let idx = self.ppu_read(0x3F00 + (((palette << 2) + pixel) & 0x3F) as u16);
         statics::COLORS[idx as usize]
     }
@@ -310,6 +360,169 @@ impl PPU {
     #[allow(unused)]
     fn passed_warmup(&self) -> bool {
         self.clock_count > PPU_CTRL_IGNORE_CYCLES && PPU_WARM_UP_ENABLE
+    }
+
+    fn increment_scroll_x(&mut self) {
+        if self.can_render() {
+            if self.vram_addr.coarse_x == REG_COARSE_X {
+                // If coarse x is 31 reset it
+                self.vram_addr.coarse_x.zero(); // wipe coarse X
+                self.vram_addr.nametable_x.flip_bits(); // toggle table
+            } else {
+                // Otherwise increment it
+                self.vram_addr.coarse_x.increment();
+            }
+        }
+    }
+
+    fn increment_scroll_y(&mut self) {
+        if self.can_render() {
+            if self.vram_addr.fine_y.get_as_value() < 7 {
+                self.vram_addr.fine_y.increment();
+            } else {
+                self.vram_addr.fine_y.zero();
+
+                if self.vram_addr.coarse_y == 29 {
+                    // we need to swap vertical nametables
+                    self.vram_addr.coarse_y.zero();
+                    // flip the nametable bit
+                    self.vram_addr.nametable_y.flip_bits();
+                } else if self.vram_addr.coarse_y == 31 {
+                    // if we're in attr mem, reset it
+                    self.vram_addr.coarse_y.zero();
+                } else {
+                    self.vram_addr.coarse_y.increment();
+                }
+            }
+        }
+    }
+
+    fn transfer_address_x(&mut self) {
+        if self.can_render() {
+            self.vram_addr
+                .nametable_x
+                .set(self.tram_addr.nametable_x.get());
+            self.vram_addr.coarse_x.set(self.tram_addr.coarse_x.get());
+        }
+    }
+
+    fn transfer_address_y(&mut self) {
+        if self.can_render() {
+            self.vram_addr.fine_y.set(self.tram_addr.fine_y.get());
+            self.vram_addr
+                .nametable_y
+                .set(self.tram_addr.nametable_y.get());
+            self.vram_addr.coarse_y.set(self.tram_addr.coarse_y.get());
+        }
+    }
+
+    
+    fn load_background_shifters(&mut self) {
+        self.bg_shifter_pattern_lo = (self.bg_shifter_pattern_lo & 0xFF00) | self.bg_next_tile_lsb as u16;
+        self.bg_shifter_pattern_hi = (self.bg_shifter_pattern_hi & 0xFF00) | self.bg_next_tile_msb as u16;
+        self.bg_shifter_attrib_lo = (self.bg_shifter_attrib_lo & 0xFF00)
+            | if self.bg_next_tile_attrib & 0b01 > 0 {
+                0x00FF
+            } else {
+                0x0000
+            };
+        self.bg_shifter_attrib_hi = (self.bg_shifter_attrib_hi & 0xFF00)
+            | if self.bg_next_tile_attrib & 0b10 > 0 {
+                0x00FF
+            } else {
+                0x0000
+            };
+    }
+
+    fn update_bg_shifters(&mut self) {
+        if self.mask.render_background.get_as_bool() {
+            self.bg_shifter_pattern_lo <<= 1;
+            self.bg_shifter_pattern_hi <<= 1;
+            self.bg_shifter_attrib_lo <<= 1;
+            self.bg_shifter_attrib_hi <<= 1;
+        }
+        if self.mask.render_sprites.get_as_bool() && (0..258).contains(&self.cycle) {
+            for (i, e) in self.sprites_to_render.iter().enumerate() {
+                let (x, _, _, _) = e.to_u16_arr();
+                if (x..(x + 8)).contains(&(self.cycle as u16)) {
+                    self.sprite_shifter_pattern_lo[i] <<= 1;
+                    self.sprite_shifter_pattern_hi[i] <<= 1;
+                }
+            }
+        }
+    }
+
+    fn can_render(&self) -> bool {
+        if self.mask.render_background.get_as_value() > 0 || self.mask.render_sprites.get_as_value() > 0 {
+            return true;
+        }
+        false
+    }
+
+    fn get_sprite_size(&self) -> usize {
+        if self.ctrl.sprite_size.get_as_bool() {
+            return 16;
+        }
+        8
+    }
+
+    fn load_sprites_to_render(&mut self) {
+        self.sprites_to_render = self.oam
+            .iter()
+            .filter(|x| {
+                (0..self.get_sprite_size()).contains(&(self.scanline - x.y as usize))
+            })
+            .map(|x| x.clone())
+            .collect::<Vec<ObjectAttributeEntry>>();
+        if self.sprites_to_render.len() > 8 {
+            let (truncated, _) = self.sprites_to_render.split_at(7);
+            self.sprites_to_render = truncated.to_vec();
+            self.status.sprite_overflow.one();
+        }
+    }
+
+    fn get_color_to_draw(&self) -> Pixel {
+        let mut bg_pixel: u8 = 0x00;
+        let mut bg_palette: u8 = 0x00;
+
+        let mut fg_pixel: u8 = 0x00;
+        let mut fg_palette: u8 = 0x00;
+        let mut fg_priority: bool = false;
+
+        if self.mask.render_background.get_as_bool() {
+            let bit_mux = 0x8000 >> self.fine_x;
+            let p0_pixel: u8 = ((self.bg_shifter_pattern_lo & bit_mux) > 0) as u8;
+            let p1_pixel: u8 = ((self.bg_shifter_pattern_hi & bit_mux) > 0) as u8;
+
+            bg_pixel = (p1_pixel << 1) | p0_pixel;
+
+            let bg_pal0: u8 = ((self.bg_shifter_attrib_lo & bit_mux) > 0) as u8;
+            let bg_pal1: u8 = ((self.bg_shifter_attrib_hi & bit_mux) > 0) as u8;
+            bg_palette = (bg_pal1 << 1) | bg_pal0;
+        }
+
+        if self.mask.render_sprites.get_as_bool() {
+            'SpriteEvaluation :for (i, e) in self.sprites_to_render.iter().enumerate() {
+                let (x, _, _, _) = e.to_u16_arr();
+                if (x..(x + 8)).contains(&(self.cycle as u16)) {
+                    let p0_pixel: u8 = ((self.sprite_shifter_pattern_lo[i] & 0x80) > 0) as u8;
+                    let p1_pixel: u8 = ((self.sprite_shifter_pattern_hi[i] & 0x80) > 0) as u8;
+                    fg_pixel = (p1_pixel << 1) | p0_pixel;
+                    if fg_pixel != 0 {
+                        fg_palette = (e.attribute & 0x03) + 0x04;
+                        fg_priority = (e.attribute & 0x20) == 0;
+                        break 'SpriteEvaluation;
+                    }   
+                }
+            }
+        }
+        
+        match (bg_pixel, fg_pixel, fg_priority) {
+            (0, 1..=u8::MAX, _) => { return self.get_color_from_palette_ram(fg_palette, fg_pixel); },
+            (1..=u8::MAX, 1..=u8::MAX, true) => { return self.get_color_from_palette_ram(fg_palette, fg_pixel); },
+            _ => { return self.get_color_from_palette_ram(bg_palette, bg_pixel); },
+        }
+
     }
 }
 

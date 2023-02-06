@@ -38,6 +38,11 @@ where
         self.register >> self.left_shift
     }
 
+    /// If any bits are set this will return true
+    pub fn get_as_bool(&self) -> bool {
+        self.register > T::zero()
+    }
+
     pub fn set(&mut self, new: T) {
         self.register = new & self.mask;
     }
@@ -62,6 +67,7 @@ where
         let r = self.get_as_value() + T::one();
         self.set_with_unshifted(r);
     }
+
     pub fn decrement(&mut self) {
         let r = self.get_as_value() - T::one();
         self.set_with_unshifted(r);
@@ -279,7 +285,11 @@ pub struct ObjectAttributeEntry {
     pub x: u8,
 }
 
-impl ObjectAttributeEntry {}
+impl ObjectAttributeEntry {
+    pub fn to_u16_arr(&self) -> (u16, u16, u16, u16) {
+        (self.x as u16, self.y as u16, self.id as u16, self.attribute as u16)
+    }
+}
 
 #[derive(Debug, Default, Clone, Copy)]
 /// R G B
