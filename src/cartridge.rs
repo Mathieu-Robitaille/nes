@@ -1,7 +1,14 @@
-use std::{cell::RefCell, fs::File, io, io::prelude::*, mem, rc::Rc, slice};
+use std::{
+    fs::File, 
+    io, 
+    io::prelude::*, 
+    mem, 
+    slice
+};
 
 use crate::mapper::{Mapper000, MapperTrait};
 
+#[allow(unused)]
 #[derive(Debug, Clone, Copy)]
 pub enum MIRROR {
     HORIZONTAL,
@@ -10,6 +17,7 @@ pub enum MIRROR {
     OnescreenHi,
 }
 
+#[allow(unused)]
 pub struct Cartridge {
     mapper: Box<dyn MapperTrait>,
     prg_memory: Vec<u8>,

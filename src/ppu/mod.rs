@@ -68,6 +68,8 @@ pub struct PPU {
     sprites_to_render: Vec<ObjectAttributeEntry>,
     sprite_shifter_pattern_lo: [u8; 8],
     sprite_shifter_pattern_hi: [u8; 8],
+    sprite_zero_hit_possible: bool,
+    sprite_zero_being_rendered: bool,
 
     pub debug: bool,
     clock_count: usize,
@@ -99,6 +101,9 @@ impl PPU {
             sprites_to_render: vec![],
             sprite_shifter_pattern_lo: [0; 8],
             sprite_shifter_pattern_hi: [0; 8],
+            sprite_zero_hit_possible: false,
+            sprite_zero_being_rendered: false,
+
 
             frame_complete: false,
             frame_complete_count: 0,
@@ -206,7 +211,6 @@ impl PPU {
         }
 
         if self.cycle == 257 {
-            // load_background_shifters(self);
             self.transfer_address_x()
         }
 
@@ -467,6 +471,7 @@ impl PPU {
     }
 
     fn load_sprites_to_render(&mut self) {
+        self.sprite_zero_hit_possible = false;
         self.sprites_to_render = self.oam
             .iter()
             .filter(|x| {
@@ -474,6 +479,10 @@ impl PPU {
             })
             .map(|x| x.clone())
             .collect::<Vec<ObjectAttributeEntry>>();
+        if self.sprites_to_render.contains(&self.oam[0]) {
+            self.sprite_zero_hit_possible = true;
+        }
+
         if self.sprites_to_render.len() > 8 {
             let (truncated, _) = self.sprites_to_render.split_at(7);
             self.sprites_to_render = truncated.to_vec();
@@ -481,7 +490,7 @@ impl PPU {
         }
     }
 
-    fn get_color_to_draw(&self) -> Pixel {
+    fn get_color_to_draw(&mut self) -> Pixel {
         let mut bg_pixel: u8 = 0x00;
         let mut bg_palette: u8 = 0x00;
 
@@ -502,6 +511,9 @@ impl PPU {
         }
 
         if self.mask.render_sprites.get_as_bool() {
+            // Assume we're not rendering sprite zero
+            self.sprite_zero_being_rendered = false;
+
             'SpriteEvaluation :for (i, e) in self.sprites_to_render.iter().enumerate() {
                 let (x, _, _, _) = e.to_u16_arr();
 
@@ -511,6 +523,9 @@ impl PPU {
                     let p1_pixel: u8 = ((self.sprite_shifter_pattern_hi[i] & 0x80) > 0) as u8;
                     fg_pixel = (p1_pixel << 1) | p0_pixel;
                     if fg_pixel != 0 {
+                        if i == 0 {
+                            self.sprite_zero_being_rendered = true;
+                        }
                         fg_palette = (e.attribute & 0x03) + 0x04;
                         fg_priority = (e.attribute & 0x20) == 0;
                         break 'SpriteEvaluation;
@@ -519,6 +534,21 @@ impl PPU {
             }
         }
         
+        if self.sprite_zero_hit_possible && self.sprite_zero_being_rendered {
+            if self.mask.render_background.get_as_bool() && self.mask.render_sprites.get_as_bool() {
+                if (!(self.mask.render_background_left.get() | self.mask.render_sprites_left.get())) == 0 {
+                    if (9..258).contains(&self.cycle) {
+                        self.status.sprite_zero_hit.one();
+                    }
+                } else {
+                    if (1..258).contains(&self.cycle) {
+                        self.status.sprite_zero_hit.one();
+                    }
+                }
+            }
+        }
+
+        // !!!!!! This isnt perfect yet, it causes issues and I will need to return to it.
         match (bg_pixel, fg_pixel, fg_priority) {
             (0, 1..=u8::MAX, _) => { return self.get_color_from_palette_ram(fg_palette, fg_pixel); },
             (1..=u8::MAX, 1..=u8::MAX, true) => { return self.get_color_from_palette_ram(fg_palette, fg_pixel); },

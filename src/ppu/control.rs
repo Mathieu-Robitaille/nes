@@ -19,6 +19,8 @@ impl PPU {
         self.sprites_to_render = vec![];
         self.sprite_shifter_pattern_lo = [0; 8];
         self.sprite_shifter_pattern_hi = [0; 8];
+        self.sprite_zero_hit_possible = false;
+        self.sprite_zero_being_rendered = false;
         self.status = 0x00.into();
         self.mask = 0x00.into();
         self.ctrl = 0x00.into();

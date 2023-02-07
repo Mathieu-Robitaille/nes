@@ -1,5 +1,5 @@
+#[allow(unused)]
 pub mod ppu_consts {
-
     use crate::consts::emulation_consts::COLOR_CHANNELS;
     use crate::consts::screen_consts::{HEIGHT, WIDTH};
 
@@ -71,6 +71,7 @@ pub mod ppu_consts {
     pub const PPU_CTRL_IGNORE_CYCLES: usize = PPU_CTRL_IGNORE_CPU_CYCLES * 3;
 }
 
+#[allow(unused)]
 pub mod debug_consts {
     use crate::consts::ppu_consts::{
         NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, SPR_PATTERN_TABLE_SIZE,
@@ -175,9 +176,11 @@ pub mod debug_consts {
     const PPU_NAME_TABLE_WINDOW_X: f32 = CPU_X_POS + CPU_X_SIZE + PADDING_SIZE;
     const PPU_NAME_TABLE_WINDOW_Y: f32 = CPU_Y_POS;
     pub const PPU_NAME_TABLE_WINDOW_POS: [f32; 2] = [PPU_NAME_TABLE_WINDOW_X, PPU_NAME_TABLE_WINDOW_Y];
+    pub const PPU_NAME_TABLE_WINDOW_X_SIZE: f32 = 600f32 + PADDING_SIZE;
+    pub const PPU_NAME_TABLE_WINDOW_Y_SIZE: f32 = 600f32 + PADDING_SIZE;
     pub const PPU_NAME_TABLE_WINDOW_SIZE: [f32; 2] = [
-        600f32 + PADDING_SIZE, 600f32 + PADDING_SIZE,
-        ];
+        PPU_NAME_TABLE_WINDOW_X_SIZE, PPU_NAME_TABLE_WINDOW_Y_SIZE,
+    ];
     
     pub const PPU_NAME_TABLE_WINDOW_POSITION_COND: Condition = Condition::Appearing;
     pub const PPU_NAME_TABLE_WINDOW_SIZE_COND: Condition = Condition::Appearing;
@@ -208,6 +211,29 @@ pub mod debug_consts {
     pub const EMULATION_CONTROLS_POS: [f32; 2] =
         [EMULATION_CONTROLS_X_POS, EMULATION_CONTROLS_Y_POS];
 
+
+    // OAM Window
+    const OAM_WINDOW_X: f32 = PPU_NAME_TABLE_WINDOW_X + PPU_NAME_TABLE_WINDOW_SIZE[0] + PADDING_SIZE;
+    const OAM_WINDOW_Y: f32 = PPU_NAME_TABLE_WINDOW_Y;
+    pub const OAM_WINDOW_POS: [f32; 2] = [OAM_WINDOW_X, OAM_WINDOW_Y];
+    pub const OAM_WINDOW_SIZE: [f32; 2] = [
+        200f32,
+        600f32,
+    ];
+
+    pub const OAM_ENABLED: bool = true;
+    pub const OAM_POSITION_COND: Condition = Condition::Appearing;
+    pub const OAM_SIZE_COND: Condition = Condition::Appearing;
+    pub const OAM_RESIZABLE: bool = DEFAULT_RESIZABLE;
+    pub const OAM_SCROLLBAR: bool = DEFAULT_SCROLLBAR;
+    pub const OAM_COLLAPSIBLE: bool = DEFAULT_COLLAPSIBLE;
+
+    const RIGHTMOST_WINDOW_X: f32 = OAM_WINDOW_X + OAM_WINDOW_SIZE[0] + PADDING_SIZE;
+    const LOWEST_WINDOW_Y: f32 = EMULATION_CONTROLS_Y_POS + PADDING_SIZE;
+    pub const TOTAL_WIDTH: f32 = RIGHTMOST_WINDOW_X;
+    pub const TOTAL_HEIGHT: f32 = RIGHTMOST_WINDOW_X;
+
+
     pub mod debug_color {
         pub const RED: [f32; 4] = [1.0, 0.0, 0.0, 1.0];
         pub const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
@@ -231,8 +257,10 @@ pub mod render_consts {
 
     const DEFAULT_WIDTH: f64 = 1024f64;
 
-    pub const LOGICAL_WIDTH: f64 = if PPU_NAME_TABLE_WINDOW_ENABLE { DEFAULT_WIDTH + PPU_NAME_TABLE_WINDOW_SIZE[0] as f64 } else { DEFAULT_WIDTH };
-    pub const LOGICAL_HEIGHT: f64 = 768f64;
+    // pub const LOGICAL_WIDTH: f64 = if PPU_NAME_TABLE_WINDOW_ENABLE { DEFAULT_WIDTH + PPU_NAME_TABLE_WINDOW_SIZE[0] as f64 } else { DEFAULT_WIDTH };
+    // pub const LOGICAL_HEIGHT: f64 = 768f64;
+    pub const LOGICAL_WIDTH: f64 = 2100f64;
+    pub const LOGICAL_HEIGHT: f64 = 900f64;
 }
 
 pub mod nes_consts {

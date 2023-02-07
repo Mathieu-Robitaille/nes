@@ -343,7 +343,11 @@ fn draw_ppu_tables(nes: &mut Nes, state: &EmulationState, ui: &Ui) {
 
 fn draw_oam(nes: &mut Nes, ui: &Ui) {
     ui.window("OAM")
-        .size([200f32, 600f32], Condition::Appearing)
+        .position(OAM_WINDOW_POS, OAM_POSITION_COND)
+        .size(OAM_WINDOW_SIZE, OAM_SIZE_COND)
+        .resizable(OAM_RESIZABLE)
+        .scroll_bar(OAM_SCROLLBAR)
+        .collapsible(OAM_COLLAPSIBLE)
         .build(|| {
             if let Some(_t) = ui.begin_table_header(
                 "table-headers",

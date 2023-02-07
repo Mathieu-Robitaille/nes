@@ -68,6 +68,7 @@ where
         self.set_with_unshifted(r);
     }
 
+    #[allow(unused)]
     pub fn decrement(&mut self) {
         let r = self.get_as_value() - T::one();
         self.set_with_unshifted(r);
@@ -124,6 +125,7 @@ impl StatusRegister {
             | self.vertical_blank.get()
     }
 
+    #[allow(unused)]
     pub fn set_register(&mut self, new: u8) {
         self.unused.set(new);
         self.sprite_overflow.set(new);
@@ -277,7 +279,7 @@ impl VramRegister {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ObjectAttributeEntry {
     pub y: u8,
     pub id: u8,

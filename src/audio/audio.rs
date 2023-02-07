@@ -1,11 +1,17 @@
 const SCALING: f32 = std::f32::consts::FRAC_2_PI;
 
+use crate::ppu::structures::Register;
+
 struct AudioEnvelope {
     length: u8,
     frequency: u8,
 }
 
-pub struct APU2A03 {}
+
+
+pub struct APU2A03 {
+    
+}
 
 impl APU2A03 {
     fn cpu_read(addr: u16) -> u8 {
@@ -14,22 +20,47 @@ impl APU2A03 {
 
     fn cpu_write(addr: u16, data: u8) {
         match addr {
+            // Pulse 1
+            0x4000 => {}
             0x4001 => {}
             0x4002 => {}
             0x4003 => {}
+
+            // Pulse 2
             0x4004 => {}
             0x4005 => {}
             0x4006 => {}
             0x4007 => {}
+
+            // Triangle
             0x4008 => {}
             0x4009 => {}
+            0x400A => {}
+            0x400B => {}
+
+            // Noise
+            0x400C => {}
+            0x400D => {}
+            0x400E => {}
+            0x400F => {}
+
+            // DMC
             0x4010 => {}
             0x4011 => {}
             0x4012 => {}
             0x4013 => {}
+
+            // Unused
             0x4014 => {}
+
+            // All - Channel enable and length counter
             0x4015 => {}
+
+            // Unused
             0x4016 => {}
+
+            // All - Frame counter
+            0x4017 => {}
             _ => {}
         }
     }
