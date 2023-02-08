@@ -1,19 +1,17 @@
 use crate::consts::{
     emulation_consts::*,
     emulation_consts::{CLIENT_FORMAT, COLOR_CHANNELS},
-    nes_consts::CART,
-    ppu_consts::{NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, SPR_PATTERN_TABLE_SIZE},
-    screen_consts::{HEIGHT, WIDTH},
+    ppu_consts::SPR_PATTERN_TABLE_SIZE,
+    render_consts::*,
 };
-use crate::ppu::generate_dummy_screen;
 
 use crate::Nes;
 
 use glium::{
     backend::Facade,
-    texture::{ClientFormat, RawImage2d},
+    texture::RawImage2d,
     uniforms::{MagnifySamplerFilter, MinifySamplerFilter, SamplerBehavior},
-    Display, Surface, Texture2d,
+    Texture2d,
 };
 use imgui::*;
 use imgui_glium_renderer::Texture;
@@ -59,56 +57,6 @@ impl EmulationState {
             cycles: 0,
             watch_addr: 0x0000,
         }
-    }
-
-    pub fn register_debug_textures<F>(
-        &mut self,
-        gl_ctx: &F,
-        textures: &mut Textures<Texture>,
-    ) -> Result<(), anyhow::Error>
-    where
-        F: Facade,
-    {
-        Ok(())
-    }
-
-    pub fn register_textures<F>(
-        &mut self,
-        gl_ctx: &F,
-        textures: &mut Textures<Texture>,
-    ) -> Result<(), anyhow::Error>
-    where
-        F: Facade,
-    {
-        if self.nes_texture_id.is_none() {
-            // Generate dummy texture
-            let texture_id = generate_dummy_texture(
-                NUM_CYCLES_PER_SCANLINE,
-                NUM_SCANLINES_RENDERED,
-                gl_ctx,
-                textures,
-            )?;
-            self.nes_texture_id = Some(texture_id);
-        }
-
-        if EMU_DEBUG && self.debug_textures.is_none() {
-            self.debug_textures = Some(DebugTextures {
-                palette_one: generate_dummy_texture(
-                    SPR_PATTERN_TABLE_SIZE,
-                    SPR_PATTERN_TABLE_SIZE,
-                    gl_ctx,
-                    textures,
-                )?,
-                palette_two: generate_dummy_texture(
-                    SPR_PATTERN_TABLE_SIZE,
-                    SPR_PATTERN_TABLE_SIZE,
-                    gl_ctx,
-                    textures,
-                )?,
-            });
-        }
-
-        Ok(())
     }
 
     fn reset(&mut self, nes: &mut Nes) {
@@ -168,7 +116,7 @@ impl EmulationState {
             _ => self.frame_sync = FrameSync::Stop, /* the rest are to be implemented */
         }
         if let Some(tex_id) = self.nes_texture_id {
-            self.update_display(nes, tex_id, gl_ctx, tex);
+            let _ = self.update_display(nes, tex_id, gl_ctx, tex);
         }
     }
 
@@ -184,41 +132,79 @@ impl EmulationState {
     {
         let bytes = nes.cpu.bus.ppu.get_screen().to_vec();
         let texture = convert_data_to_texture(
-            NUM_CYCLES_PER_SCANLINE,
-            NUM_SCANLINES_RENDERED,
+            SCREEN_TEX_WIDTH,
+            SCREEN_TEX_HEIGHT,
             bytes,
             gl_ctx,
-            textures,
         )?;
         if let Some(tex) = textures.get_mut(texture_id) {
             *tex = texture;
         }
-        if let Some(debug_tex) = &self.debug_textures {
-            let bytes = nes.get_pattern_table(0, self.palette_id).to_vec();
-            // println!("{:?}", bytes);
-            let texture = convert_data_to_texture(
-                SPR_PATTERN_TABLE_SIZE,
-                SPR_PATTERN_TABLE_SIZE,
-                bytes,
-                gl_ctx,
-                textures,
-            )?;
-            if let Some(tex) = textures.get_mut(debug_tex.palette_one) {
-                *tex = texture;
-            }
-
-            let bytes = nes.get_pattern_table(1, self.palette_id).to_vec();
-            let texture = convert_data_to_texture(
-                SPR_PATTERN_TABLE_SIZE,
-                SPR_PATTERN_TABLE_SIZE,
-                bytes,
-                gl_ctx,
-                textures,
-            )?;
-            if let Some(tex) = textures.get_mut(debug_tex.palette_two) {
-                *tex = texture;
+        if cfg!(debug_assertions) {
+            if let Some(debug_tex) = &self.debug_textures {
+                let bytes = nes.get_pattern_table(0, self.palette_id).to_vec();
+                // println!("{:?}", bytes);
+                let texture = convert_data_to_texture(
+                    SPR_PATTERN_TABLE_SIZE,
+                    SPR_PATTERN_TABLE_SIZE,
+                    bytes,
+                    gl_ctx,
+                )?;
+                if let Some(tex) = textures.get_mut(debug_tex.palette_one) {
+                    *tex = texture;
+                }
+    
+                let bytes = nes.get_pattern_table(1, self.palette_id).to_vec();
+                let texture = convert_data_to_texture(
+                    SPR_PATTERN_TABLE_SIZE,
+                    SPR_PATTERN_TABLE_SIZE,
+                    bytes,
+                    gl_ctx,
+                )?;
+                if let Some(tex) = textures.get_mut(debug_tex.palette_two) {
+                    *tex = texture;
+                }
             }
         }
+        Ok(())
+    }
+
+    pub fn register_textures<F>(
+        &mut self,
+        gl_ctx: &F,
+        textures: &mut Textures<Texture>,
+    ) -> Result<(), anyhow::Error>
+    where
+        F: Facade,
+    {
+        if self.nes_texture_id.is_none() {
+            // Generate dummy texture
+            let texture_id = generate_dummy_texture(
+                SCREEN_TEX_WIDTH,
+                SCREEN_TEX_HEIGHT,
+                gl_ctx,
+                textures,
+            )?;
+            self.nes_texture_id = Some(texture_id);
+        }
+
+        if cfg!(debug_assertions) {
+            self.debug_textures = Some(DebugTextures {
+                palette_one: generate_dummy_texture(
+                    SPR_PATTERN_TABLE_SIZE,
+                    SPR_PATTERN_TABLE_SIZE,
+                    gl_ctx,
+                    textures,
+                )?,
+                palette_two: generate_dummy_texture(
+                    SPR_PATTERN_TABLE_SIZE,
+                    SPR_PATTERN_TABLE_SIZE,
+                    gl_ctx,
+                    textures,
+                )?,
+            });
+        }
+
         Ok(())
     }
 
@@ -273,7 +259,7 @@ where
             data.push((i + j) as u8);
         }
     }
-    let texture = convert_data_to_texture(w, h, data, gl_ctx, textures)?;
+    let texture = convert_data_to_texture(w, h, data, gl_ctx)?;
     let texture_id = textures.insert(texture);
     Ok(texture_id)
 }
@@ -283,7 +269,6 @@ fn convert_data_to_texture<F>(
     h: usize,
     bytes: Vec<u8>,
     gl_ctx: &F,
-    textures: &mut Textures<Texture>,
 ) -> Result<Texture, anyhow::Error>
 where
     F: Facade,

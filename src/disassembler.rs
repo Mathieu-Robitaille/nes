@@ -28,6 +28,7 @@ impl fmt::Display for AddressingMode {
     }
 }
 
+#[allow(unused)]
 pub fn decode_bytes_used(ins: AddressingMode) -> usize {
     match ins {
         IMP | YYY => 0,
@@ -66,6 +67,8 @@ macro_rules! name_of_function {
 //     for _ in 0..steps { iter.next(); }
 // }
 
+
+/// This looks kinda gross
 pub fn disassemble_rom(
     start: u16,
     stop: u16,

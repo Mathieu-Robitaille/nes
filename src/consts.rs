@@ -3,18 +3,39 @@ pub mod ppu_consts {
     use crate::consts::emulation_consts::COLOR_CHANNELS;
     use crate::consts::screen_consts::{HEIGHT, WIDTH};
 
+    /// Type aliases for ease of modification and clarity for the reader
+    
+    // The name table used to lookup the background tile id for a set location
     pub type NameTableT = [[u8; NAME_TABLE_SIZE]; 2];
+
+    // 
     pub type PatternTableT = [[u8; PATTERN_TABLE_SIZE]; 2];
+    
+    // These are the color groupings
     pub type PaletteT = [u8; 32];
-    pub type ScreenT = [u8; NUM_CYCLES_PER_SCANLINE * NUM_SCANLINES_RENDERED * COLOR_CHANNELS];
-    pub type SprScreenT = [u8; WIDTH * HEIGHT * COLOR_CHANNELS];
+
+
+    const LIVE_SCREEN_SIZE: usize = WIDTH * HEIGHT * COLOR_CHANNELS;
+    const DEBUG_SCREEN_SIZE: usize = NUM_CYCLES_PER_SCANLINE * NUM_SCANLINES_RENDERED * COLOR_CHANNELS;
+
+    #[cfg(debug_assertions)]
+    const ACTUAL_SIZE: usize = DEBUG_SCREEN_SIZE;
+    #[cfg(not(debug_assertions))]
+    const ACTUAL_SIZE: usize = LIVE_SCREEN_SIZE;
+    
+
+    // The actual game window, what we draw to
+    pub type ScreenT = [u8; ACTUAL_SIZE];
+
+
+    pub type SprScreenT = [u8; LIVE_SCREEN_SIZE];
     pub type SprNameTableT = [SprScreenT; 2];
     pub type SprPatternTableUnitT =
         [u8; SPR_PATTERN_TABLE_SIZE * SPR_PATTERN_TABLE_SIZE * COLOR_CHANNELS];
     pub type SprPatternTableT = [SprPatternTableUnitT; 2];
 
     pub const NUM_CYCLES_PER_SCANLINE: usize = 341;
-    pub const NUM_SCANLINES_RENDERED: usize = 261; // -1 .. = 261
+    pub const NUM_SCANLINES_RENDERED: usize = 261;
 
     pub const STARTING_SCANLINE: usize = 0;
 
@@ -73,12 +94,18 @@ pub mod ppu_consts {
 
 #[allow(unused)]
 pub mod debug_consts {
+
+    /// This section contains a bunch of hard coded values for the arrangement of 
+    /// windows. Most likely if i looked more into imgui (which I will do once this project is more mature)
+    /// there is a better method to handle this. In the meantime this is kinda fun and this is not a "production"
+    /// codebase, so some consessions can be made.
+
     use crate::consts::ppu_consts::{
         NUM_CYCLES_PER_SCANLINE, NUM_SCANLINES_RENDERED, SPR_PATTERN_TABLE_SIZE,
     };
     use imgui::Condition;
 
-    /*  */
+    /* imgui window padding size */
     pub const PADDING_SIZE: f32 = 10f32;
 
 
@@ -252,6 +279,11 @@ pub mod render_consts {
         PPU_NAME_TABLE_WINDOW_ENABLE,
         PPU_NAME_TABLE_WINDOW_SIZE
     };
+    use super::ppu_consts::{
+        NUM_SCANLINES_RENDERED,
+        NUM_CYCLES_PER_SCANLINE,
+    };
+    use crate::consts::screen_consts::{HEIGHT, WIDTH};
     pub const TITLE: &'static str = "NES Emulator";
     pub const VSYNC: bool = true;
 
@@ -261,6 +293,16 @@ pub mod render_consts {
     // pub const LOGICAL_HEIGHT: f64 = 768f64;
     pub const LOGICAL_WIDTH: f64 = 2100f64;
     pub const LOGICAL_HEIGHT: f64 = 900f64;
+
+    #[cfg(debug_assertions)]
+    pub const SCREEN_TEX_WIDTH: usize = NUM_CYCLES_PER_SCANLINE;
+    #[cfg(debug_assertions)]
+    pub const SCREEN_TEX_HEIGHT: usize = NUM_SCANLINES_RENDERED;
+
+    #[cfg(not(debug_assertions))]
+    pub const SCREEN_TEX_WIDTH: usize = WIDTH;
+    #[cfg(not(debug_assertions))]
+    pub const SCREEN_TEX_HEIGHT: usize = HEIGHT;
 }
 
 pub mod nes_consts {

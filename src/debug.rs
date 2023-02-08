@@ -1,6 +1,5 @@
 use crate::consts::{
     debug_consts::*,
-    emulation_consts::{CPU_DEBUG, EMU_DEBUG},
     ppu_consts::*,
 };
 use crate::cpu::CPUFlags;
@@ -18,26 +17,30 @@ use std::time::Instant;
 ///
 
 pub fn draw_debug(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
-    draw_cpu(nes, ui);
-    draw_ppu_buffer(nes, state, ui);
-    draw_ppu_tables(nes, state, ui);
-    emulation_control(nes, state, ui);
-    draw_ppu_status(nes, ui);
+    
+    draw_ppu_buffer(state, ui);
+    emulation_control(state, ui);
 
-    if PPU_NAME_TABLE_WINDOW_ENABLE {
-        draw_ppu_name_tables(nes, ui);
+    if cfg!(debug_assertions) {
+        draw_cpu(nes, ui);
+        draw_ppu_tables(nes, state, ui);
+        draw_ppu_status(nes, ui);
+
+        if PPU_NAME_TABLE_WINDOW_ENABLE {
+            draw_ppu_name_tables(nes, ui);
+        }
+
+        draw_oam(nes, ui);
+        // draw_ram("Stack".to_string(), 16, 0x100, nes, ui);
+        if cfg!(ram_debug) {
+            draw_ram("Debug Results".to_string(), 16, 0x0000, nes, ui);
+        }
+
+        draw_code(10, nes, ui);
     }
-
-    draw_oam(nes, ui);
-    // draw_ram("Stack".to_string(), 16, 0x100, nes, ui);
-    if CPU_DEBUG {
-        draw_ram("Debug Results".to_string(), 16, 0x0000, nes, ui);
-    }
-
-    draw_code(10, nes, ui);
 }
 
-fn emulation_control(nes: &mut Nes, state: &mut EmulationState, ui: &Ui) {
+fn emulation_control(state: &mut EmulationState, ui: &Ui) {
     ui.window("Emulation Control.")
         .position(EMULATION_CONTROLS_POS, Condition::Appearing)
         .build(|| {
@@ -288,7 +291,7 @@ fn draw_code(num_lines: usize, nes: &mut Nes, ui: &Ui) {
         });
 }
 
-fn draw_ppu_buffer(nes: &mut Nes, state: &EmulationState, ui: &Ui) {
+fn draw_ppu_buffer(state: &EmulationState, ui: &Ui) {
     ui.window("NES")
         .position(PPU_SCREEN_POS, PPU_SCREEN_POSITION_COND)
         .size(PPU_GAME_WINDOW_SIZE, PPU_SCREEN_SIZE_COND)

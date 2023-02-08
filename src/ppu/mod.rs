@@ -14,6 +14,7 @@ use crate::consts::{
     emulation_consts::COLOR_CHANNELS,
     ppu_consts::*,
     screen_consts::{HEIGHT, WIDTH},
+    render_consts::{SCREEN_TEX_HEIGHT, SCREEN_TEX_WIDTH},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -70,8 +71,6 @@ pub struct PPU {
     sprite_shifter_pattern_hi: [u8; 8],
     sprite_zero_hit_possible: bool,
     sprite_zero_being_rendered: bool,
-
-    pub debug: bool,
     clock_count: usize,
 }
 
@@ -129,7 +128,6 @@ impl PPU {
             bg_shifter_pattern_hi: 0,
             bg_shifter_attrib_lo: 0,
             bg_shifter_attrib_hi: 0,
-            debug: false,
             clock_count: 0,
         }
     }
@@ -199,7 +197,7 @@ impl PPU {
 
             if (0..NUM_SCANLINES_RENDERED).contains(&self.scanline) && (0..WIDTH).contains(&self.cycle) {
                 write_pixel_to_output(
-                    ((self.scanline * NUM_CYCLES_PER_SCANLINE) + self.cycle) * COLOR_CHANNELS,
+                    ((self.scanline * SCREEN_TEX_WIDTH) + self.cycle) * COLOR_CHANNELS,
                     &mut self.screen,
                     color,
                 );
@@ -475,7 +473,11 @@ impl PPU {
         self.sprites_to_render = self.oam
             .iter()
             .filter(|x| {
-                (0..self.get_sprite_size()).contains(&(self.scanline - x.y as usize))
+                let (r, b) = self.scanline.overflowing_sub(x.y as usize);
+                if !b {
+                    return (0..self.get_sprite_size()).contains(&r);
+                }
+                false
             })
             .map(|x| x.clone())
             .collect::<Vec<ObjectAttributeEntry>>();
@@ -577,7 +579,13 @@ impl LineState {
     }
 }
 
+
+#[cfg(debug_assertions)]
 pub fn generate_dummy_screen() -> ScreenT {
-    // [0; NUM_CYCLES_PER_SCANLINE * NUM_SCANLINES_RENDERED * COLOR_CHANNELS]
-    include_bytes!("title.bin").to_owned()
+    include_bytes!("./bins/debug-title.bin").to_owned()
+}
+
+#[cfg(not(debug_assertions))]
+pub fn generate_dummy_screen() -> ScreenT {
+    include_bytes!("./bins/title.bin").to_owned()
 }

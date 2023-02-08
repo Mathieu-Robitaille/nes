@@ -8,7 +8,7 @@ pub(crate) fn set_oam_field(oam: &mut [ObjectAttributeEntry; 64], addr: u8, data
         0 => oam[idx as usize].y = data,
         1 => oam[idx as usize].id = data,
         2 => oam[idx as usize].attribute = data,
-        3 => oam[idx as usize].x = data +1,
+        3 => oam[idx as usize].x = data,
         _ => { /* No */ }
     }
 }
